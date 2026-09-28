@@ -17,9 +17,9 @@ build/tests/render_a2_reference: tests/render_a2_reference.cpp tests/audio_stimu
 build/tests/%.f32: models/local/%.nam build/tests/render_a2_reference
 	./build/tests/render_a2_reference $< $@
 
-build/tests/a2_test: tests/a2_test.cpp tests/audio_stimulus.h tests/allocation_guard.h src/models/a2_lite.cpp src/models/a2_lite.h src/models/amp_models.cpp src/models/amp_models.h src/audio/nam_processor.cpp src/audio/nam_processor.h $(A2_HEADER) tests/a2.mk
+build/tests/a2_test: tests/a2_test.cpp tests/audio_stimulus.h tests/allocation_guard.h src/models/a2_lite.cpp src/models/a2_lite.h src/models/amp_model.h src/models/amp_models.cpp src/models/amp_models.h src/audio/nam_processor.cpp src/audio/nam_processor.h $(A2_HEADER) tests/a2.mk
 	@mkdir -p $(@D)
-	$(CXX) $(FLAGS) $(INCLUDES) -Ibuild/generated tests/a2_test.cpp src/models/a2_lite.cpp src/models/amp_models.cpp src/audio/nam_processor.cpp $(NAM_DIR)/NAM/dsp.cpp -o $@
+	$(CXX) $(FLAGS) $(INCLUDES) -Ibuild/generated tests/a2_test.cpp src/models/a2_lite.cpp src/models/amp_models.cpp src/audio/nam_processor.cpp -o $@
 
 .PHONY: test-a2
 test-a2: build/tests/a2_test $(A2_REFERENCES)

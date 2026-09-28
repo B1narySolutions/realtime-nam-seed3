@@ -8,7 +8,6 @@ install:
 build:
 	@command -v arm-none-eabi-g++ >/dev/null || { echo 'Missing ARM compiler; run make install.'; exit 1; }
 	@test -f libs/libDaisy/core/Makefile || { echo 'Run make install first.'; exit 1; }
-	@test -f libs/NeuralAmpModelerCore/Dependencies/eigen/Eigen/Core || { echo 'Missing NAM dependencies; run make install.'; exit 1; }
 	$(MAKE) -C libs/libDaisy -j$(JOBS) OPT=-Os
 	$(MAKE) -f make/firmware.mk all
 
@@ -22,6 +21,7 @@ monitor:
 	@bash scripts/monitor.sh "$(PORT)"
 
 test:
+	@test -f libs/NeuralAmpModelerCore/Dependencies/eigen/Eigen/Core || { echo 'Missing NAM Core (the test reference); run make install.'; exit 1; }
 	$(MAKE) -f tests/Makefile test
 
 model:
@@ -31,7 +31,6 @@ compiledb: model
 	@command -v compiledb >/dev/null || { echo 'Missing compiledb; install it with brew install compiledb.'; exit 1; }
 	@command -v arm-none-eabi-g++ >/dev/null || { echo 'Missing ARM compiler; run make install.'; exit 1; }
 	@test -f libs/libDaisy/core/Makefile || { echo 'Run make install first.'; exit 1; }
-	@test -f libs/NeuralAmpModelerCore/Dependencies/eigen/Eigen/Core || { echo 'Missing NAM dependencies; run make install.'; exit 1; }
 	compiledb -n -f make -B -f make/firmware.mk compile-objects GCC_PATH="$$(dirname "$$(command -v arm-none-eabi-g++)")"
 
 format:

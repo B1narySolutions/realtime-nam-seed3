@@ -19,7 +19,7 @@ const char *AmpName(AmpId id) {
     return "invalid";
 }
 
-std::unique_ptr<nam::DSP> CreateAmpModel(AmpId id) {
+std::unique_ptr<AmpModel> CreateAmpModel(AmpId id) {
     switch (id) {
     case AmpId::Fender:
         return std::make_unique<A2Lite>(embedded_a2::kFenderTwin65);

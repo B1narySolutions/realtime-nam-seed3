@@ -1,6 +1,6 @@
 #pragma once
 
-#include "NAM/dsp.h"
+#include "models/amp_model.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -48,12 +48,13 @@ constexpr int ReceptiveField() {
 // processed layer by layer rather than sample by sample. Delay lines are
 // mirrored ring buffers: every frame is stored twice, one period apart, so
 // any window of past frames is contiguous and taps are plain offsets.
-class A2Lite final : public nam::DSP {
+class A2Lite final : public AmpModel {
   public:
     static constexpr std::size_t kWeights = a2_lite::WeightCount();
     explicit A2Lite(const float *weights);
-    void Reset(double sample_rate_hz, int max_block_size) override;
-    void process(float **input, float **output, int frame_count) override;
+    double SampleRate() const override { return 48000.0; }
+    void Reset(int max_block_size) override;
+    void Process(const float *input, float *output, int frame_count) override;
 
   private:
     // Ring of `period` interleaved [frame][kChannels] frames, stored twice.
@@ -87,7 +88,6 @@ class A2Lite final : public nam::DSP {
         DelayLine history;
     };
 
-    int GetPrewarmSamples() override { return a2_lite::ReceptiveField(); }
     void ProcessLayer(Layer &layer, const float *conditioning, int frame_count);
     void ProcessHead(float *output, int frame_count);
 

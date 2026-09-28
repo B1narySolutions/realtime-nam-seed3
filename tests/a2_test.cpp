@@ -1,5 +1,4 @@
 // Usage: a2_test <reference.f32>... with one upstream rendering per AmpId, in order.
-#include "NAM/dsp.h"
 #include "allocation_guard.h"
 #include "audio/nam_processor.h"
 #include "audio_stimulus.h"

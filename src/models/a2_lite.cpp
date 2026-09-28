@@ -39,7 +39,7 @@ int A2Lite::DelayLine::Push(const float *frames, int frame_count) {
     return start;
 }
 
-A2Lite::A2Lite(const float *weights) : DSP(1, 1, 48000.0), input_projection_(weights) {
+A2Lite::A2Lite(const float *weights) : input_projection_(weights) {
     const float *next = weights + kChannels;
     for (std::size_t i = 0; i < layers_.size(); ++i) {
         auto &layer = layers_[i];
@@ -57,7 +57,7 @@ A2Lite::A2Lite(const float *weights) : DSP(1, 1, 48000.0), input_projection_(wei
     head_scale_ = next[kHeadTaps * kChannels + 1];
 }
 
-void A2Lite::Reset(double sample_rate_hz, int max_block_size) {
+void A2Lite::Reset(int max_block_size) {
     const int block = std::max(max_block_size, 1);
     for (auto &layer : layers_)
         layer.history.Resize((layer.kernel_size - 1) * layer.dilation, block);
@@ -65,7 +65,10 @@ void A2Lite::Reset(double sample_rate_hz, int max_block_size) {
     residual_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     skip_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     activation_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
-    DSP::Reset(sample_rate_hz, max_block_size);
+    // Process silence until every delay line is full, as upstream prewarming does.
+    std::vector<float> silence(static_cast<std::size_t>(block), 0.0f), output(silence.size());
+    for (int frames = 0; frames < ReceptiveField(); frames += block)
+        Process(silence.data(), output.data(), block);
 }
 
 // Accumulates one or two taps across a block. Everything hot is held in
@@ -164,13 +167,13 @@ void A2Lite::ProcessHead(float *output, int frame_count) {
         output[t] *= scale;
 }
 
-void A2Lite::process(float **input, float **output, int frame_count) {
-    const float *x = input[0];
+void A2Lite::Process(const float *input, float *output, int frame_count) {
+    const float *x = input;
     for (int t = 0; t < frame_count; ++t)
         for (int channel = 0; channel < kChannels; ++channel)
             residual_[t * kChannels + channel] = input_projection_[channel] * x[t];
     std::fill(skip_.begin(), skip_.begin() + static_cast<std::ptrdiff_t>(frame_count) * kChannels, 0.0f);
     for (auto &layer : layers_)
         ProcessLayer(layer, x, frame_count);
-    ProcessHead(output[0], frame_count);
+    ProcessHead(output, frame_count);
 }
