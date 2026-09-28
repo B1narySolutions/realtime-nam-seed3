@@ -8,11 +8,22 @@ FLAGS = -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
 INCLUDES = -Isrc -Itests
 include tests/a2.mk
 
+# The amp models are downloaded locally and never committed. Without them,
+# run only the tests that do not need them.
+MISSING_MODELS = $(filter-out $(wildcard $(A2_MODELS)),$(A2_MODELS))
+
 .PHONY: test
+ifeq ($(MISSING_MODELS),)
 test: $(TEST_BIN) build/tests/nam_audio_test test-a2
 	./$(TEST_BIN)
 	./build/tests/nam_audio_test $(A2_REFERENCES)
 	python3 -B tests/test_convert_a2.py
+else
+test: $(TEST_BIN)
+	./$(TEST_BIN)
+	@echo 'Skipped A2-Lite and converter tests; missing $(MISSING_MODELS).' >&2
+	@echo 'Run bash scripts/download_models.sh to enable them.' >&2
+endif
 
 $(TEST_BIN): $(SOURCES) src/audio/nam_processor.h src/models/amp_model.h tests/Makefile
 	@mkdir -p $(@D)

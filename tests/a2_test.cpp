@@ -9,6 +9,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <vector>
 
 static std::vector<float> ReadReference(const char *path) {
@@ -77,12 +78,43 @@ static void ExpectSettledSilence(AmpId id) {
     }
 }
 
+// Input at and far beyond full scale must still give finite output. Covers
+// full-scale square waves, a sine at 10x full scale, and held DC extremes.
+static float LoudInput(int sample) {
+    if (sample < 6000)
+        return (sample / 100) % 2 ? 1.0f : -1.0f;
+    if (sample < 12000)
+        return 10.0f * std::sin(static_cast<float>(sample) * 0.031f);
+    if (sample < 18000)
+        return 10.0f;
+    return -10.0f;
+}
+
+static void ExpectFiniteOnLoudInput(AmpId id) {
+    auto model = CreateAmpModel(id);
+    model->Reset(48);
+    std::array<float, 48> input{}, output{};
+    for (int offset = 0; offset < kTestSamples; offset += 48) {
+        for (int i = 0; i < 48; ++i)
+            input[i] = LoudInput(offset + i);
+        model->Process(input.data(), output.data(), 48);
+        for (float sample : output)
+            assert(std::isfinite(sample));
+    }
+}
+
 int main(int argc, char **argv) {
     assert(argc == 4);
+    // IDs outside AmpId have no model.
+    for (int id : {0, 4, 99}) {
+        assert(!CreateAmpModel(static_cast<AmpId>(id)));
+        assert(std::string(AmpName(static_cast<AmpId>(id))) == "invalid");
+    }
     for (int id = 1; id <= 3; ++id) {
         const AmpId amp = static_cast<AmpId>(id);
         const std::vector<float> reference = ReadReference(argv[id]);
         ExpectSettledSilence(amp);
+        ExpectFiniteOnLoudInput(amp);
 
         // Ring buffer periods depend on the maximum block size.
         NamProcessor processor;
