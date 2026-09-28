@@ -10,16 +10,18 @@
 #include <limits>
 #include <vector>
 
-// Usage: nam_audio_test <reference.f32>... with one upstream rendering per AmpId, in order.
+// Usage: nam_audio_test <reference.f32>... with one upstream rendering per
+// AmpId, in models/amps.json order.
 int main(int argc, char **argv) {
-    assert(argc == 4);
+    assert(argc == kAmpCount + 1);
     NamAudio audio;
     std::array<float, 49> input{}, left{}, right{};
     input.fill(0.5f);
     audio.Process(input.data(), left.data(), right.data(), 49, false);
     assert(left[48] == 0.4f && right[48] == 0.4f);
-    // Reuse the audio path across switches, including switching back to Fender.
-    for (int id : {1, 2, 3, 1}) {
+    // Reuse the audio path across switches to every amp, then back to the first.
+    for (int step = 0; step <= kAmpCount; ++step) {
+        const int id = step % kAmpCount + 1;
         std::ifstream file(argv[id], std::ios::binary);
         std::vector<float> reference(kTestSamples);
         file.read(reinterpret_cast<char *>(reference.data()), reference.size() * sizeof(float));

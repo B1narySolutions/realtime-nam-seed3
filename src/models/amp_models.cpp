@@ -2,31 +2,33 @@
 
 #include "embedded_a2_data.h"
 #include "models/a2_lite.h"
+#include <iterator>
 
-static_assert(sizeof(embedded_a2::kFenderTwin65) == A2Lite::kWeights * sizeof(float), "embedded model size does not match the engine");
-static_assert(sizeof(embedded_a2::kVoxAc30Chimey) == A2Lite::kWeights * sizeof(float), "embedded model size does not match the engine");
-static_assert(sizeof(embedded_a2::kMarshallJcm800G5) == A2Lite::kWeights * sizeof(float), "embedded model size does not match the engine");
+// models/amps.json must list every AmpId exactly once, in order, and every
+// model must have the engine's weight count.
+static constexpr bool ModelsMatchAmpIds() {
+    if (std::size(embedded_a2::kModels) != kAmpCount)
+        return false;
+    for (int i = 0; i < kAmpCount; ++i) {
+        const auto &model = embedded_a2::kModels[i];
+        if (model.id != static_cast<AmpId>(i + 1) || model.weight_count != A2Lite::kWeights)
+            return false;
+    }
+    return true;
+}
+static_assert(ModelsMatchAmpIds(), "models/amps.json does not match AmpId or the engine");
+
+static const embedded_a2::Model *FindModel(AmpId id) {
+    const int index = static_cast<int>(id) - 1;
+    return index >= 0 && index < kAmpCount ? &embedded_a2::kModels[index] : nullptr;
+}
 
 const char *AmpName(AmpId id) {
-    switch (id) {
-    case AmpId::Fender:
-        return "Fender Twin65";
-    case AmpId::Vox:
-        return "Vox AC30 Chimey";
-    case AmpId::Marshall:
-        return "Marshall JCM800 G5";
-    }
-    return "invalid";
+    const auto *model = FindModel(id);
+    return model ? model->name : "invalid";
 }
 
 std::unique_ptr<AmpModel> CreateAmpModel(AmpId id) {
-    switch (id) {
-    case AmpId::Fender:
-        return std::make_unique<A2Lite>(embedded_a2::kFenderTwin65);
-    case AmpId::Vox:
-        return std::make_unique<A2Lite>(embedded_a2::kVoxAc30Chimey);
-    case AmpId::Marshall:
-        return std::make_unique<A2Lite>(embedded_a2::kMarshallJcm800G5);
-    }
-    return nullptr;
+    const auto *model = FindModel(id);
+    return model ? std::make_unique<A2Lite>(model->weights) : nullptr;
 }

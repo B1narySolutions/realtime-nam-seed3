@@ -1,4 +1,5 @@
-// Usage: a2_test <reference.f32>... with one upstream rendering per AmpId, in order.
+// Usage: a2_test <reference.f32>... with one upstream rendering per AmpId, in
+// models/amps.json order.
 #include "allocation_guard.h"
 #include "audio/nam_processor.h"
 #include "audio_stimulus.h"
@@ -104,13 +105,13 @@ static void ExpectFiniteOnLoudInput(AmpId id) {
 }
 
 int main(int argc, char **argv) {
-    assert(argc == 4);
+    assert(argc == kAmpCount + 1);
     // IDs outside AmpId have no model.
-    for (int id : {0, 4, 99}) {
+    for (int id : {0, kAmpCount + 1, 99}) {
         assert(!CreateAmpModel(static_cast<AmpId>(id)));
         assert(std::string(AmpName(static_cast<AmpId>(id))) == "invalid");
     }
-    for (int id = 1; id <= 3; ++id) {
+    for (int id = 1; id <= kAmpCount; ++id) {
         const AmpId amp = static_cast<AmpId>(id);
         const std::vector<float> reference = ReadReference(argv[id]);
         ExpectSettledSilence(amp);

@@ -31,9 +31,18 @@ class ConvertA2Test(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     converter.convert(path)
 
+    def test_rejects_mismatched_head_scale(self):
+        model = json.loads(Path('models/local/fender-twin65-a2-lite.nam').read_text())
+        model['config']['head_scale'] *= 2
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'bad.nam'
+            path.write_text(json.dumps(model))
+            with self.assertRaises(ValueError):
+                converter.convert(path)
+
     def test_all_required_models(self):
-        for name in converter.MODELS.values():
-            packed, digest = converter.convert(Path('models/local') / name)
+        for amp in converter.load_manifest():
+            packed, digest = converter.convert(Path('models/local') / amp['file'])
             self.assertEqual(len(packed), converter.WEIGHT_COUNT)
             self.assertEqual(len(digest), 64)
 
