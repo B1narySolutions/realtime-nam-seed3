@@ -15,7 +15,7 @@ case $(uname -s) in
         if ! brew list --cask gcc-arm-embedded >/dev/null 2>&1; then
             brew install --cask gcc-arm-embedded
         fi
-        for formula in dfu-util jq; do
+        for formula in dfu-util; do
             if ! brew list --formula "$formula" >/dev/null 2>&1; then
                 brew install "$formula"
             fi
@@ -37,7 +37,7 @@ case $(uname -s) in
         "${apt_command[@]}" update
         "${apt_command[@]}" install -y --no-upgrade \
             build-essential git gcc-arm-none-eabi libnewlib-arm-none-eabi \
-            libstdc++-arm-none-eabi-newlib dfu-util jq curl ca-certificates \
+            libstdc++-arm-none-eabi-newlib dfu-util curl ca-certificates \
             libdigest-sha-perl python3
         ;;
     *)
@@ -45,7 +45,7 @@ case $(uname -s) in
         exit 1
         ;;
 esac
-for tool in git make arm-none-eabi-g++ dfu-util jq; do
+for tool in git make arm-none-eabi-g++ dfu-util; do
     command -v "$tool" >/dev/null || {
         echo "Missing $tool on PATH; check your tool installation and shell setup." >&2
         exit 1

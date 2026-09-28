@@ -92,13 +92,35 @@ def pack(floats):
     return packed
 
 
-def convert(path):
-    raw = path.read_bytes()
-    model = json.loads(raw)
+def checked_weights(model, path):
     validate(model, path)
     floats = to_float32(model["weights"], path)
     check_head_scale(model, floats, path)
-    return pack(floats), hashlib.sha256(raw).hexdigest()
+    return floats
+
+
+def convert(path):
+    raw = path.read_bytes()
+    return pack(checked_weights(json.loads(raw), path)), hashlib.sha256(raw).hexdigest()
+
+
+def extract(container, path):
+    """Return the Lite submodel of a downloaded A2 container.
+
+    The Lite model inherits the container's sample rate and metadata when it
+    lacks its own. Its weights are not changed.
+    """
+    if container.get("architecture") != "SlimmableContainer":
+        raise ValueError(f"{path}: expected an A2 SlimmableContainer")
+    lites = [sub["model"] for sub in container["config"]["submodels"] if sub.get("max_value") == 0.5]
+    if len(lites) != 1:
+        raise ValueError(f"{path}: expected one Lite submodel")
+    model = dict(lites[0])
+    if model.get("sample_rate") is None:
+        model["sample_rate"] = container.get("sample_rate")
+    model["metadata"] = {**(container.get("metadata") or {}), **(model.get("metadata") or {})}
+    checked_weights(model, path)
+    return model
 
 
 def load_manifest(path=MANIFEST):
@@ -146,6 +168,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("names", help="print model file stems in AmpId order")
+    commands.add_parser("sources", help="print file, URL and SHA-256 per amp, tab-separated")
+    lite = commands.add_parser("extract", help="save the Lite model of a downloaded A2 container")
+    lite.add_argument("container", type=Path)
+    lite.add_argument("output", type=Path)
     write = commands.add_parser("header", help="write the embedded weights header")
     write.add_argument("output", type=Path)
     write.add_argument("--models", type=Path, default=Path("models/local"))
@@ -154,6 +180,14 @@ def main():
         amps = load_manifest()
         if args.command == "names":
             print(" ".join(amp["file"][:-len(".nam")] for amp in amps))
+            return
+        if args.command == "sources":
+            for amp in amps:
+                print("\t".join((amp["file"], amp["url"], amp["download_sha256"])))
+            return
+        if args.command == "extract":
+            model = extract(json.loads(args.container.read_bytes()), args.container)
+            args.output.write_text(json.dumps(model, separators=(",", ":")) + "\n")
             return
         text = header(amps, args.models)
     except (OSError, ValueError, KeyError, TypeError, OverflowError) as error:

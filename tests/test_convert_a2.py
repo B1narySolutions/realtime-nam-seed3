@@ -40,6 +40,27 @@ class ConvertA2Test(unittest.TestCase):
             with self.assertRaises(ValueError):
                 converter.convert(path)
 
+    def test_extracts_lite_submodel(self):
+        lite = json.loads(Path('models/local/fender-twin65-a2-lite.nam').read_text())
+        bare = {key: value for key, value in lite.items() if key not in ('sample_rate', 'metadata')}
+        other = dict(bare, config=dict(bare['config'], layers=[]))
+        container = dict(architecture='SlimmableContainer', sample_rate=48000,
+                         metadata=lite['metadata'],
+                         config=dict(submodels=[dict(max_value=0.25, model=other),
+                                                dict(max_value=0.5, model=bare)]))
+        extracted = converter.extract(container, 'container')
+        self.assertEqual(extracted['weights'], lite['weights'])
+        self.assertEqual(extracted['sample_rate'], 48000)
+        self.assertEqual(extracted['metadata'], lite['metadata'])
+
+        bad_cases = [dict(container, architecture='WaveNet'),
+                     dict(container, config=dict(submodels=[])),
+                     dict(container, config=dict(submodels=[dict(max_value=0.5, model=bare)] * 2)),
+                     dict(container, config=dict(submodels=[dict(max_value=0.5, model=other)]))]
+        for bad in bad_cases:
+            with self.assertRaises(ValueError):
+                converter.extract(bad, 'container')
+
     def test_all_required_models(self):
         for amp in converter.load_manifest():
             packed, digest = converter.convert(Path('models/local') / amp['file'])
