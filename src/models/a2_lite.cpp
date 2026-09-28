@@ -11,9 +11,9 @@ void A2Lite::DelayLine::Resize(int context_frames, int max_block_size) {
     write = 0;
 }
 
-void A2Lite::DelayLine::Clear() {
-    std::fill(samples.begin(), samples.end(), 0.0f);
-    write = 0;
+void A2Lite::DelayLine::Fill(const float *frame) {
+    for (std::size_t i = 0; i < samples.size(); i += kChannels)
+        std::copy(frame, frame + kChannels, &samples[i]);
 }
 
 int A2Lite::DelayLine::Push(const float *frames, int frame_count) {
@@ -38,6 +38,8 @@ int A2Lite::DelayLine::Push(const float *frames, int frame_count) {
         write = 0;
     return start;
 }
+
+static float LeakyRelu(float x) { return x >= 0.0f ? x : 0.01f * x; }
 
 A2Lite::A2Lite(const float *weights) : input_projection_(weights) {
     const float *next = weights + kChannels;
@@ -65,10 +67,36 @@ void A2Lite::Reset(int max_block_size) {
     residual_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     skip_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     activation_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
-    // Process silence until every delay line is full, as upstream prewarming does.
-    std::vector<float> silence(static_cast<std::size_t>(block), 0.0f), output(silence.size());
-    for (int frames = 0; frames < ReceptiveField(); frames += block)
-        Process(silence.data(), output.data(), block);
+    Prewarm();
+}
+
+// In silence every delay line settles to a constant frame, so compute those
+// frames directly instead of processing a receptive field of zeros as
+// upstream does. With zero input, each layer sees a constant residual, the
+// dilated convolution reduces to the sum of its taps, and conditioning drops
+// out. Sums follow ProcessLayer's order.
+void A2Lite::Prewarm() {
+    float residual[kChannels] = {}; // input projection of silence
+    float skip[kChannels] = {};
+    for (auto &layer : layers_) {
+        layer.history.Fill(residual);
+        float a[kChannels];
+        for (int out = 0; out < kChannels; ++out) {
+            a[out] = layer.bias[out];
+            for (int tap = 0; tap < layer.kernel_size; ++tap)
+                for (int in = 0; in < kChannels; ++in)
+                    a[out] += layer.taps[tap * kWeightsPerTap + in * kChannels + out] * residual[in];
+            a[out] = LeakyRelu(a[out]);
+            skip[out] += a[out];
+        }
+        for (int out = 0; out < kChannels; ++out) {
+            float update = layer.residual_bias[out];
+            for (int in = 0; in < kChannels; ++in)
+                update += layer.residual[out * kChannels + in] * a[in];
+            residual[out] += update;
+        }
+    }
+    head_history_.Fill(skip);
 }
 
 // Accumulates one or two taps across a block. Everything hot is held in
@@ -133,9 +161,9 @@ void A2Lite::ProcessLayer(Layer &layer, const float *conditioning, int frame_cou
         float a0 = activation[0] + c0 * x;
         float a1 = activation[1] + c1 * x;
         float a2 = activation[2] + c2 * x;
-        a0 = a0 >= 0.0f ? a0 : 0.01f * a0;
-        a1 = a1 >= 0.0f ? a1 : 0.01f * a1;
-        a2 = a2 >= 0.0f ? a2 : 0.01f * a2;
+        a0 = LeakyRelu(a0);
+        a1 = LeakyRelu(a1);
+        a2 = LeakyRelu(a2);
         skip[0] += a0;
         skip[1] += a1;
         skip[2] += a2;

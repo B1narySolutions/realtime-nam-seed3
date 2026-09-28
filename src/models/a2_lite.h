@@ -31,14 +31,6 @@ constexpr std::size_t WeightCount() {
         count += LayerWeightCount(kernel_size);
     return count + kHeadTaps * kChannels + 2;
 }
-
-// Samples needed to fill every delay line; matches upstream prewarming.
-constexpr int ReceptiveField() {
-    int samples = kHeadTaps;
-    for (int i = 0; i < kLayers; ++i)
-        samples += (kKernelSizes[i] - 1) * kDilations[i];
-    return samples;
-}
 } // namespace a2_lite
 
 // Fixed-shape A2-Lite inference. Weights must outlive this object (embedded
@@ -64,7 +56,8 @@ class A2Lite final : public AmpModel {
         int write = 0;  // next frame to write, in [0, period)
 
         void Resize(int context_frames, int max_block_size);
-        void Clear();
+        // Sets every stored frame to `frame`.
+        void Fill(const float *frame);
         // Stores frames at the write position and returns that position.
         int Push(const float *frames, int frame_count);
         // Frames [index, index + frame_count) counted back from a Push result.
@@ -88,6 +81,7 @@ class A2Lite final : public AmpModel {
         DelayLine history;
     };
 
+    void Prewarm();
     void ProcessLayer(Layer &layer, const float *conditioning, int frame_count);
     void ProcessHead(float *output, int frame_count);
 
