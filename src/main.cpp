@@ -11,6 +11,7 @@ static std::atomic<uint32_t> max_callback_us{0};
 static std::atomic<uint32_t> total_callback_us{0};
 static std::atomic<uint32_t> overruns{0};
 static std::atomic<uint32_t> requested_amp{1};
+static std::atomic<bool> bootloader_requested{false};
 static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio counters must be lock-free");
 // Only changed while audio is stopped.
 static bool bypass = false;
@@ -41,9 +42,24 @@ void AudioCallback(daisy::AudioHandle::InputBuffer input_channels, daisy::AudioH
 // USB interrupt: record a command only. Never allocate or construct a model
 // here.
 void OnUsbReceive(uint8_t *data, uint32_t *byte_count) {
-    for (uint32_t i = 0; i < *byte_count; ++i)
+    for (uint32_t i = 0; i < *byte_count; ++i) {
         if (data[i] >= '0' && data[i] <= '3')
             requested_amp.store(data[i] - '0', std::memory_order_relaxed);
+        else if (data[i] == 'B')
+            bootloader_requested.store(true, std::memory_order_relaxed);
+    }
+}
+
+// Sent by scripts/enter_dfu.sh so make upload works without the BOOT and
+// RESET buttons. Drives the BOOT pin high and resets into the STM32 ROM DFU
+// bootloader; does not return.
+static void EnterBootloaderIfRequested() {
+    if (!bootloader_requested.load(std::memory_order_relaxed))
+        return;
+    seed.StopAudio();
+    seed.PrintLine(">>> rebooting into DFU bootloader");
+    seed.DelayMs(50); // Let the USB transfer finish before the reset.
+    daisy::System::ResetToBootloader();
 }
 
 struct AppState {
@@ -94,7 +110,7 @@ static void ReportProfile(AppState &state) {
 }
 #endif
 
-static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
+static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 B=DFU ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
 
 static void InitHardware() {
     seed.Init(true); // 480 MHz boost; the model needs the headroom.
@@ -168,6 +184,7 @@ int main() {
     state.last_report_ms = daisy::System::GetNow();
 
     while (true) {
+        EnterBootloaderIfRequested();
         ApplyPendingAmpCommand(state);
         ReportStatus(state);
         seed.DelayMs(1);

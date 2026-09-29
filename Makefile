@@ -13,6 +13,7 @@ build:
 
 upload: build
 	@command -v dfu-util >/dev/null || { echo 'Run make install first.'; exit 1; }
+	@bash scripts/enter_dfu.sh "$(PORT)"
 	$(MAKE) -f make/firmware.mk program-dfu
 
 program-dfu: upload
@@ -46,7 +47,7 @@ help:
 	@echo 'make build    Build libDaisy and three-amp A2-Lite firmware.'
 	@echo 'make model    Convert the downloaded A2-Lite models to embedded float data.'
 	@echo 'make test     Run upstream A2 comparisons and sanitized host audio tests.'
-	@echo 'make upload   Build and flash via USB; enter BOOT + RESET mode first.'
+	@echo 'make upload   Build and flash via USB; the running firmware enters DFU itself (else BOOT + RESET).'
 	@echo 'make monitor  Open USB serial in screen (optional PORT=/dev/cu.usbmodem...).'
 	@echo 'make format   Format C/C++ files under src/ using .clang-format.'
 	@echo 'make compiledb Generate compile_commands.json for clangd without building.'

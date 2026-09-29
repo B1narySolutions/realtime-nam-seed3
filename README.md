@@ -23,12 +23,15 @@ prerequisites, including the ARM C/C++ libraries and Python 3.
 
 ## Upload and play
 
-Hold **BOOT**, press and release **RESET**, then release **BOOT** to enter DFU mode.
-
 ```sh
 make upload
 make monitor
 ```
+
+If this firmware is already running, `make upload` sends it `B` over USB
+serial and it reboots into DFU mode on its own. Otherwise (first flash, other
+firmware, or a hung board), hold **BOOT**, press and release **RESET**, then
+release **BOOT** to enter DFU mode before running `make upload`.
 
 The firmware starts with Fender selected. Press a key in the serial monitor
 to switch models or bypass; no Enter is needed:
@@ -39,6 +42,7 @@ to switch models or bypass; no Enter is needed:
 | `1` | Fender '65 Twin Reverb |
 | `2` | Vox AC30 Chimey |
 | `3` | Marshall JCM800 (gain 5) |
+| `B` | Reboot into DFU mode for flashing |
 
 Audio runs at 48 kHz, with the left input processed and sent to both outputs.
 Switching models or toggling bypass briefly interrupts playback. These are
@@ -52,7 +56,7 @@ Exit the monitor with **Ctrl-A**, then **K**, then **Y**.
 The firmware prints one status line per second:
 
 ```
---- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 ---
+--- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 B=DFU ---
 [active Fender Twin65          ]  avg  61% ( 612 us)  peak  63% ( 627 us)  headroom   373 us  blocks 1000  overruns 0
 >>> bypass
 [bypass -                      ]  avg  61% ( 618 us)  peak  62% ( 623 us)  headroom   377 us  blocks 1000  overruns 0
