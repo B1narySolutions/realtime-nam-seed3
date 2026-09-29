@@ -23,8 +23,8 @@ bool NamAudio::LoadAmpModel(AmpId amp) {
 }
 
 void NamAudio::Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model) {
-    const bool processed = ProcessModel(input_left, frame_count);
-    const float *source = processed && !bypass_model ? output_.data() : input_left;
+    const bool processed = !bypass_model && ProcessModel(input_left, frame_count);
+    const float *source = processed ? output_.data() : input_left;
     for (std::size_t i = 0; i < frame_count; ++i) {
         const float sample = ApplyOutputGainAndClamp(source[i]);
         output_left[i] = sample;

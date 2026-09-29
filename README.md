@@ -57,9 +57,9 @@ The firmware prints one status line per second:
 
 ```
 --- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 B=DFU ---
-[active Fender Twin65          ]  avg  61% ( 612 us)  peak  63% ( 627 us)  headroom   373 us  blocks 1000  overruns 0
+[active Fender Twin65          ]  avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
 >>> bypass
-[bypass -                      ]  avg  61% ( 618 us)  peak  62% ( 623 us)  headroom   377 us  blocks 1000  overruns 0
+[bypass -                      ]  avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
 ```
 
 | Field | Meaning |

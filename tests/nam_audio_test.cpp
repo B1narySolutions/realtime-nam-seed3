@@ -30,18 +30,35 @@ int main(int argc, char **argv) {
         input.fill(0.5f);
         audio.Process(input.data(), left.data(), right.data(), 49, false);
         assert(left[48] == 0.4f && right[48] == 0.4f);
+        bool bypassed = false;
         for (int offset = 0; offset < kTestSamples;) {
+            // Bypass skips the model, so its state must not advance: after
+            // unrelated bypassed input, the stream resumes where it left off.
+            if (offset >= 12000 && !bypassed) {
+                bypassed = true;
+                for (int block = 0; block < 80; ++block) {
+                    for (int i = 0; i < 48; ++i)
+                        input[i] = 1.5f * TestInput(block * 48 + i + 7);
+                    left.fill(123.0f);
+                    right.fill(123.0f);
+                    const auto allocations = allocation_count;
+                    audio.Process(input.data(), left.data(), right.data(), 48, true);
+                    assert(allocation_count == allocations);
+                    for (int i = 0; i < 48; ++i)
+                        assert(left[i] == std::clamp(input[i] * NamAudio::kOutputGain, -1.0f, 1.0f) && left[i] == right[i]);
+                    assert(left[48] == 123.0f && right[48] == 123.0f);
+                }
+            }
             const int frames = std::min(offset % 3 == 0 ? 48 : 17, kTestSamples - offset);
             for (int i = 0; i < frames; ++i)
                 input[i] = TestInput(offset + i);
-            const bool bypass = offset >= 12000 && offset < 16000;
             left.fill(123.0f);
             right.fill(123.0f);
             const auto allocations = allocation_count;
-            audio.Process(input.data(), left.data(), right.data(), frames, bypass);
+            audio.Process(input.data(), left.data(), right.data(), frames, false);
             assert(allocation_count == allocations);
             for (int i = 0; i < frames; ++i) {
-                const float expected = std::clamp((bypass ? input[i] : reference[offset + i]) * NamAudio::kOutputGain, -1.0f, 1.0f);
+                const float expected = std::clamp(reference[offset + i] * NamAudio::kOutputGain, -1.0f, 1.0f);
                 assert(std::isfinite(left[i]) && left[i] == right[i]);
                 assert(std::fabs(left[i] - expected) < 1e-4f);
             }

@@ -15,8 +15,9 @@ class NamAudio {
     // Call with audio stopped. Failure leaves the path in bypass.
     bool LoadAmpModel(AmpId amp = AmpId::Fender);
 
-    // Left input to both outputs. Bypass still advances model state to allow
-    // meaningful comparisons. Buffers must contain at least frame_count samples.
+    // Left input to both outputs. Bypass skips the model entirely, so its
+    // state stays where bypass began. Buffers must contain at least
+    // frame_count samples.
     void Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model);
 
   private:
