@@ -13,6 +13,11 @@ include $(SYSTEM_FILES_DIR)/Makefile
 # so audio still starts in bypass. Keep IEEE floating-point behavior until
 # model accuracy and target performance have been measured.
 CPPFLAGS += -fexceptions
+# nano.specs memcpy and memset copy one byte per iteration. Keep GCC from
+# turning A2-Lite's per-call weight copies and per-block fills into calls
+# to them; plain loops compile to word loads and stores.
+$(BUILD_DIR)/a2_lite.o: CPPFLAGS += -fno-tree-loop-distribute-patterns
+
 # make upload PROFILE=1 adds A2-Lite per-layer cycle counters, printed every 5 s.
 # Objects don't track flags; run make clean when toggling it.
 ifdef PROFILE
