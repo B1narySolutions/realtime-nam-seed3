@@ -33,6 +33,17 @@ constexpr std::size_t WeightCount() {
 }
 } // namespace a2_lite
 
+#ifdef A2_LITE_PROFILE
+// Cumulative DWT cycle counts per stage, added to by the audio callback.
+// Readers diff successive snapshots; uint32_t subtraction handles wrap.
+namespace a2_lite::profile {
+extern volatile uint32_t input_cycles;
+extern volatile uint32_t layer_cycles[kLayers];
+extern volatile uint32_t head_cycles;
+void EnableCycleCounter();
+} // namespace a2_lite::profile
+#endif
+
 // Fixed-shape A2-Lite inference. Weights must outlive this object (embedded
 // flash). Buffers are allocated in Reset; process never allocates.
 //

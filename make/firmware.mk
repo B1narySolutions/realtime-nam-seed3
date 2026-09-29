@@ -13,6 +13,11 @@ include $(SYSTEM_FILES_DIR)/Makefile
 # so audio still starts in bypass. Keep IEEE floating-point behavior until
 # model accuracy and target performance have been measured.
 CPPFLAGS += -fexceptions
+# make upload PROFILE=1 adds A2-Lite per-layer cycle counters, printed every 5 s.
+# Objects don't track flags; run make clean when toggling it.
+ifdef PROFILE
+CPPFLAGS += -DA2_LITE_PROFILE
+endif
 include make/models.mk
 
 # Used in dry-run mode to generate clangd commands without requiring a link.

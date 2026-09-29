@@ -1,5 +1,6 @@
 #include "audio/nam_audio.h"
 #include "daisy_seed.h"
+#include "models/a2_lite.h"
 #include <atomic>
 #include <cstdint>
 
@@ -52,12 +53,48 @@ struct AppState {
     uint32_t last_report_ms = 0;
     bool led_on = false;
     uint32_t report_count = 0;
+#ifdef A2_LITE_PROFILE
+    uint32_t profile_blocks = 0;
+    uint32_t input_mark = 0;
+    uint32_t layer_marks[a2_lite::kLayers] = {};
+    uint32_t head_mark = 0;
+#endif
 };
 
-static void PrintHeader() {
-    seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 ---",
-                   static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs));
+#ifdef A2_LITE_PROFILE
+// Prints average cycles per block for each A2-Lite stage since the last
+// table. cyc/MAC divides a layer's cycles by its dilated-tap multiply-adds
+// (kernel * 9 per frame), so it is comparable across kernel sizes.
+static void ReportProfile(AppState &state) {
+    const uint32_t blocks = state.profile_blocks;
+    state.profile_blocks = 0;
+    if (blocks == 0)
+        return;
+    const auto take = [blocks](volatile uint32_t &counter, uint32_t &mark) {
+        const uint32_t now = counter;
+        const uint32_t delta = now - mark;
+        mark = now;
+        return delta / blocks;
+    };
+    const uint32_t input = take(a2_lite::profile::input_cycles, state.input_mark);
+    uint32_t total = input;
+    seed.PrintLine("=== A2-Lite cycles/block over %lu blocks (budget %lu cycles) ===", static_cast<unsigned long>(blocks), static_cast<unsigned long>(daisy::System::GetSysClkFreq() / 1000000 * kBlockBudgetUs));
+    seed.PrintLine("  input     %6lu", static_cast<unsigned long>(input));
+    for (int i = 0; i < a2_lite::kLayers; ++i) {
+        const uint32_t cycles = take(a2_lite::profile::layer_cycles[i], state.layer_marks[i]);
+        total += cycles;
+        const uint32_t macs = static_cast<uint32_t>(a2_lite::kKernelSizes[i]) * a2_lite::kWeightsPerTap * NamAudio::kBlockSize;
+        const uint32_t cyc_per_mac_x100 = cycles * 100 / macs;
+        seed.PrintLine("  L%02d k%2d d%3d %6lu  %lu.%02lu cyc/MAC", i, a2_lite::kKernelSizes[i], a2_lite::kDilations[i], static_cast<unsigned long>(cycles), static_cast<unsigned long>(cyc_per_mac_x100 / 100), static_cast<unsigned long>(cyc_per_mac_x100 % 100));
+    }
+    const uint32_t head = take(a2_lite::profile::head_cycles, state.head_mark);
+    total += head;
+    seed.PrintLine("  head      %6lu", static_cast<unsigned long>(head));
+    seed.PrintLine("  total     %6lu", static_cast<unsigned long>(total));
 }
+#endif
+
+static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
 
 static void InitHardware() {
     seed.Init(true); // 480 MHz boost; the model needs the headroom.
@@ -65,6 +102,9 @@ static void InitHardware() {
     seed.SetAudioSampleRate(daisy::SaiHandle::Config::SampleRate::SAI_48KHZ);
     seed.SetAudioBlockSize(NamAudio::kBlockSize);
     seed.StartLog(false);
+#ifdef A2_LITE_PROFILE
+    a2_lite::profile::EnableCycleCounter();
+#endif
     seed.usb_handle.SetReceiveCallback(OnUsbReceive, daisy::UsbHandle::FS_INTERNAL);
 }
 
@@ -111,8 +151,12 @@ static void ReportStatus(AppState &state) {
     const bool active = !bypass && state.model_ready;
 
     const char *mode = bypass ? "bypass" : (state.model_ready ? "active" : "failed");
-    seed.PrintLine("[%-6s %-22s]  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s",
-                   mode, active ? AmpName(state.selected_amp) : "-", static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
+    seed.PrintLine("[%-6s %-22s]  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
+#ifdef A2_LITE_PROFILE
+    state.profile_blocks += callbacks;
+    if (state.report_count % 5 == 0)
+        ReportProfile(state);
+#endif
 }
 
 int main() {
