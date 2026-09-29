@@ -35,9 +35,10 @@ void EnableCycleCounter() {
 #define A2_PROFILE_LAP(total)
 #endif
 
-void A2Lite::DelayLine::Resize(int context_frames, int max_block_size) {
+void A2Lite::DelayLine::Resize(int context_frames, int max_block_size, int read_span) {
     period = context_frames + max_block_size;
-    samples.assign(static_cast<std::size_t>(2 * period) * kChannels, 0.0f);
+    mirror = read_span; // At most period: a pass never spans more than its layer's context plus a block.
+    samples.assign(static_cast<std::size_t>(period + mirror) * kChannels, 0.0f);
     write = 0;
 }
 
@@ -46,26 +47,25 @@ void A2Lite::DelayLine::Fill(const float *frame) {
         std::copy(frame, frame + kChannels, &samples[i]);
 }
 
+void A2Lite::DelayLine::Store(int index, const float *frames, int frame_count) {
+    float *primary = &samples[static_cast<std::size_t>(index) * kChannels];
+    for (int i = 0; i < frame_count * kChannels; ++i)
+        primary[i] = frames[i];
+    float *copy = primary + static_cast<std::size_t>(period) * kChannels;
+    for (int i = 0; i < (std::min(index + frame_count, mirror) - index) * kChannels; ++i)
+        copy[i] = frames[i];
+}
+
 int A2Lite::DelayLine::Push(const float *frames, int frame_count) {
+    // At most two runs: up to the end of the ring, then from its start.
+    // frame_count never exceeds one block, which is at most `period`.
     const int start = write;
-    float *primary = &samples[static_cast<std::size_t>(write) * kChannels];
-    float *mirror = primary + static_cast<std::size_t>(period) * kChannels;
-    for (int t = 0; t < frame_count; ++t, frames += kChannels) {
-        // Wrap within the period; the mirror copy follows one period later.
-        if (write == period) {
-            write = 0;
-            primary = samples.data();
-            mirror = primary + static_cast<std::size_t>(period) * kChannels;
-        }
-        primary[0] = mirror[0] = frames[0];
-        primary[1] = mirror[1] = frames[1];
-        primary[2] = mirror[2] = frames[2];
-        primary += kChannels;
-        mirror += kChannels;
-        ++write;
-    }
-    if (write == period)
-        write = 0;
+    const int first = std::min(frame_count, period - write);
+    Store(write, frames, first);
+    Store(0, frames + first * kChannels, frame_count - first);
+    write += frame_count;
+    if (write >= period)
+        write -= period;
     return start;
 }
 
@@ -95,8 +95,10 @@ A2Lite::A2Lite(const float *weights) : input_projection_(weights) {
 void A2Lite::Reset(int max_block_size) {
     const int block = std::max(max_block_size, 1);
     for (auto &layer : layers_)
-        layer.history.Resize((layer.kernel_size - 1) * layer.dilation, block);
-    head_history_.Resize(kHeadTaps - 1, block);
+        // A two-tap pass reads its second tap one dilation past its window.
+        layer.history.Resize((layer.kernel_size - 1) * layer.dilation, block, block + layer.dilation);
+    // The head fetches a window per tap.
+    head_history_.Resize(kHeadTaps - 1, block, block);
     residual_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     skip_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     activation_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
@@ -136,13 +138,17 @@ void A2Lite::Prewarm() {
 // local scalars, so stores to the accumulator never force weight or history
 // reloads. Each output channel sums taps and inputs in upstream order.
 // Processing two frames per iteration for more independent FMA chains was
-// measured ~13% slower per tap on the Seed.
-template <int kTaps> static void AccumulateTaps(float *activation, const float *weights, const float *history, int history_stride, int frame_count) {
+// measured ~13% slower per tap on the Seed. The first call of a layer starts
+// each sum from `bias` instead of reading back a bias-filled activation.
+template <int kTaps, bool kFromBias> static void AccumulateTaps(float *activation, const float *bias, const float *weights, const float *history, int history_stride, int frame_count) {
     float w[kTaps * kWeightsPerTap];
     for (int i = 0; i < kTaps * kWeightsPerTap; ++i)
         w[i] = weights[i];
+    const float b0 = bias[0], b1 = bias[1], b2 = bias[2];
     for (int t = 0; t < frame_count; ++t, activation += kChannels, history += kChannels) {
-        float a0 = activation[0], a1 = activation[1], a2 = activation[2];
+        float a0 = kFromBias ? b0 : activation[0];
+        float a1 = kFromBias ? b1 : activation[1];
+        float a2 = kFromBias ? b2 : activation[2];
         for (int tap = 0; tap < kTaps; ++tap) {
             const float *h = history + tap * history_stride;
             const float h0 = h[0], h1 = h[1], h2 = h[2];
@@ -163,24 +169,29 @@ template <int kTaps> static void AccumulateTaps(float *activation, const float *
     }
 }
 
+constexpr bool EveryKernelHasTwoTaps() {
+    for (int kernel_size : kKernelSizes)
+        if (kernel_size < 2)
+            return false;
+    return true;
+}
+static_assert(EveryKernelHasTwoTaps(), "ProcessLayer starts each layer with a two-tap pass");
+
 void A2Lite::ProcessLayer(Layer &layer, const float *conditioning, int frame_count) {
     const int start = layer.history.Push(residual_.data(), frame_count);
 
-    float *activation = activation_.data();
-    const float b0 = layer.bias[0], b1 = layer.bias[1], b2 = layer.bias[2];
-    for (int t = 0; t < frame_count; ++t) {
-        activation[t * kChannels + 0] = b0;
-        activation[t * kChannels + 1] = b1;
-        activation[t * kChannels + 2] = b2;
-    }
     // Dilated convolution. Tap i reads (kernel_size - 1 - i) * dilation
-    // frames back; consecutive taps are one dilation apart.
+    // frames back; consecutive taps are one dilation apart. Every kernel
+    // size is at least 2, so the first pair always exists.
+    float *activation = activation_.data();
     const int history_stride = layer.dilation * kChannels;
-    int tap = 0;
+    const auto window = [&](int tap) { return layer.history.Window(start, (layer.kernel_size - 1 - tap) * layer.dilation); };
+    AccumulateTaps<2, true>(activation, layer.bias, layer.taps, window(0), history_stride, frame_count);
+    int tap = 2;
     for (; tap + 2 <= layer.kernel_size; tap += 2)
-        AccumulateTaps<2>(activation, layer.taps + tap * kWeightsPerTap, layer.history.Window(start, (layer.kernel_size - 1 - tap) * layer.dilation), history_stride, frame_count);
+        AccumulateTaps<2, false>(activation, layer.bias, layer.taps + tap * kWeightsPerTap, window(tap), history_stride, frame_count);
     if (tap < layer.kernel_size)
-        AccumulateTaps<1>(activation, layer.taps + tap * kWeightsPerTap, layer.history.Window(start, (layer.kernel_size - 1 - tap) * layer.dilation), history_stride, frame_count);
+        AccumulateTaps<1, false>(activation, layer.bias, layer.taps + tap * kWeightsPerTap, window(tap), history_stride, frame_count);
 
     // Input conditioning, leaky ReLU, skip connection, and the 1x1 residual
     // projection back onto the layer input.

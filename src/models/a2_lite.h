@@ -49,8 +49,8 @@ void EnableCycleCounter();
 //
 // Each layer's delay line only holds that layer's own input, so a block is
 // processed layer by layer rather than sample by sample. Delay lines are
-// mirrored ring buffers: every frame is stored twice, one period apart, so
-// any window of past frames is contiguous and taps are plain offsets.
+// ring buffers whose first frames are mirrored past the end, so the windows
+// each tap pass reads are contiguous and taps are plain offsets.
 class A2Lite final : public AmpModel {
   public:
     static constexpr std::size_t kWeights = a2_lite::WeightCount();
@@ -60,17 +60,24 @@ class A2Lite final : public AmpModel {
     void Process(const float *input, float *output, int frame_count) override;
 
   private:
-    // Ring of `period` interleaved [frame][kChannels] frames, stored twice.
+    // Ring of `period` interleaved [frame][kChannels] frames. Frames
+    // [0, mirror) are also stored at [period, period + mirror), so a read
+    // that starts inside the ring and spans up to `mirror` frames is
+    // contiguous.
     struct DelayLine {
         std::vector<float> samples;
         int period = 0; // context frames plus one block
+        int mirror = 0; // longest span read from one window start
         int write = 0;  // next frame to write, in [0, period)
 
-        void Resize(int context_frames, int max_block_size);
+        void Resize(int context_frames, int max_block_size, int read_span);
         // Sets every stored frame to `frame`.
         void Fill(const float *frame);
         // Stores frames at the write position and returns that position.
         int Push(const float *frames, int frame_count);
+        // Stores a run of frames at `index` that does not wrap, plus its
+        // mirror copy where it overlaps [0, mirror).
+        void Store(int index, const float *frames, int frame_count);
         // Frames [index, index + frame_count) counted back from a Push result.
         const float *Window(int start, int frames_back) const {
             int index = start - frames_back;
