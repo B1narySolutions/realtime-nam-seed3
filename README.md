@@ -89,3 +89,7 @@ cost the same.
 
 Formatting and clangd setup require `brew install clang-format compiledb`.
 Host tests require a C++20 compiler.
+
+See [docs/performance.md](docs/performance.md) for measured speedups, where
+the time goes, and rejected experiments. `make upload PROFILE=1` prints
+per-layer cycle counts.
