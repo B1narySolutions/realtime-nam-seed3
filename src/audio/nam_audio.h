@@ -25,6 +25,7 @@ class NamAudio {
 
     NamProcessor processor_;
     bool ready_ = false;
+    // Scratch buffers so the model never reads or writes the caller's buffers.
     std::array<float, kBlockSize> input_{};
     std::array<float, kBlockSize> output_{};
 };

@@ -14,12 +14,12 @@ class NamProcessor {
     NamProcessor(const NamProcessor &) = delete;
     NamProcessor &operator=(const NamProcessor &) = delete;
 
-    // Takes ownership, validates format, then resets and prewarms the model.
-    // Returns false on failure, preserving any previously prepared model.
-    // Unknown model sample rates are rejected; no resampling is performed.
     // Releases the current model so its memory can be reused by the next one.
     void ClearModel();
 
+    // Takes ownership, validates format, then resets and prewarms the model.
+    // Returns false on failure, preserving any previously prepared model.
+    // A model whose rate differs from sample_rate_hz is rejected; no resampling is performed.
     bool SetModel(std::unique_ptr<AmpModel> model, double sample_rate_hz, std::size_t max_block_size);
 
     // Input and output must be distinct buffers of at least frame_count samples.

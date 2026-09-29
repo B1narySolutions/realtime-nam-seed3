@@ -8,6 +8,7 @@
 enum class AmpId { Fender = 1, Vox = 2, Marshall = 3 };
 inline constexpr int kAmpCount = 3;
 
+// Display name for the serial status line, or "invalid" for an unknown amp.
 const char *AmpName(AmpId id);
 // Returns nullptr for an unknown amp. Construct only while audio is stopped.
 std::unique_ptr<AmpModel> CreateAmpModel(AmpId id);

@@ -12,6 +12,8 @@ namespace a2_lite {
 constexpr int kChannels = 3;
 constexpr int kLayers = 23;
 constexpr int kHeadTaps = 16;
+
+// Per layer: taps in the convolution, and frames between neighbouring taps.
 constexpr std::array<int, kLayers> kKernelSizes = {6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 15, 15, 6, 6, 6, 6, 6, 6, 6};
 constexpr std::array<int, kLayers> kDilations = {1, 3, 7, 17, 41, 101, 239, 1, 3, 7, 17, 41, 101, 239, 1, 13, 1, 3, 7, 17, 41, 101, 239};
 
@@ -20,7 +22,9 @@ constexpr std::array<int, kLayers> kDilations = {1, 3, 7, 17, 41, 101, 239, 1, 3
 //   per layer: taps[kernel_size][in][out], bias[kChannels], conditioning[kChannels],
 //              residual[out][in], residual bias[kChannels]
 //   head taps[kHeadTaps][kChannels], head bias, output scale
-constexpr int kWeightsPerTap = kChannels * kChannels;
+constexpr int kWeightsPerTap = kChannels * kChannels; // One 3x3 matrix per tap.
+
+// Weights after a layer's taps: three per-channel vectors plus the 3x3 residual.
 constexpr int kLayerTailWeights = 3 * kChannels + kChannels * kChannels;
 
 constexpr int LayerWeightCount(int kernel_size) { return kernel_size * kWeightsPerTap + kLayerTailWeights; }
@@ -78,7 +82,9 @@ class A2Lite final : public AmpModel {
         // Stores a run of frames at `index` that does not wrap, plus its
         // mirror copy where it overlaps [0, mirror).
         void Store(int index, const float *frames, int frame_count);
-        // Frames [index, index + frame_count) counted back from a Push result.
+        // Address of the frame `frames_back` before `start` (a Push result).
+        // If start - frames_back is negative, the window begins near the
+        // ring's end; the mirror keeps reads from it contiguous.
         const float *Window(int start, int frames_back) const {
             int index = start - frames_back;
             if (index < 0)
@@ -89,6 +95,7 @@ class A2Lite final : public AmpModel {
 
     struct Layer {
         // Views into the weight stream; see the layout above.
+        // taps is [tap][in][out]; residual is [out][in].
         const float *taps = nullptr;
         const float *bias = nullptr;
         const float *conditioning = nullptr;
@@ -99,8 +106,11 @@ class A2Lite final : public AmpModel {
         DelayLine history;
     };
 
+    // Sets all history to its state after endless silence.
     void Prewarm();
+    // Dilated convolution, activation, skip sum and residual for one layer.
     void ProcessLayer(Layer &layer, const float *conditioning, int frame_count);
+    // Turns the accumulated skip sums into the mono output.
     void ProcessHead(float *output, int frame_count);
 
     const float *input_projection_;
