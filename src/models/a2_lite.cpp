@@ -140,6 +140,10 @@ void A2Lite::Prewarm() {
 // Processing two frames per iteration for more independent FMA chains was
 // measured ~13% slower per tap on the Seed. The first call of a layer starts
 // each sum from `bias` instead of reading back a bias-filled activation.
+// Fusing ProcessLayer's output stage into the last call was also measured
+// slower (~1.8% per block): kernel-6 layers end on a two-tap pass, whose 18
+// tap weights plus the 15 output-stage constants exceed the 32 FPU
+// registers, and the per-frame spills cost more than the saved reload.
 template <int kTaps, bool kFromBias> static void AccumulateTaps(float *activation, const float *bias, const float *weights, const float *history, int history_stride, int frame_count) {
     float w[kTaps * kWeightsPerTap];
     for (int i = 0; i < kTaps * kWeightsPerTap; ++i)
