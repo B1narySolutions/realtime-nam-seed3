@@ -8,7 +8,7 @@ To add an amp, add an entry here and a matching `AmpId` value.
 
 `local/` holds the downloaded A2-Lite models used by the firmware.
 
-Run `bash scripts/download_models.sh` from the repository root to obtain them.
+Run `make download-models` from the repository root to obtain them.
 These files are Git-ignored. Their T3K licenses permit local use but require
 author permission to redistribute the models or firmware containing their weights.
 

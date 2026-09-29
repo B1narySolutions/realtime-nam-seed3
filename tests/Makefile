@@ -22,7 +22,7 @@ else
 test: $(TEST_BIN)
 	./$(TEST_BIN)
 	@echo 'Skipped A2-Lite and converter tests; missing $(MISSING_MODELS).' >&2
-	@echo 'Run bash scripts/download_models.sh to enable them.' >&2
+	@echo 'Run make download-models to enable them.' >&2
 endif
 
 $(TEST_BIN): $(SOURCES) src/audio/nam_processor.h src/models/amp_model.h tests/Makefile

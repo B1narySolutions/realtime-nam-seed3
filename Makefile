@@ -1,9 +1,12 @@
 .DEFAULT_GOAL := build
 JOBS ?= 4
 
-.PHONY: install build model upload program-dfu monitor format compiledb test clean help
+.PHONY: install download-models build model upload program-dfu monitor format compiledb test clean help
 install:
 	bash scripts/install.sh
+
+download-models:
+	bash scripts/download_models.sh
 
 build:
 	@command -v arm-none-eabi-g++ >/dev/null || { echo 'Missing ARM compiler; run make install.'; exit 1; }
@@ -44,6 +47,7 @@ clean:
 
 help:
 	@echo 'make install  Install tools with Homebrew or apt and fetch pinned dependencies.'
+	@echo 'make download-models Download the three amp models to models/local/.'
 	@echo 'make build    Build libDaisy and three-amp A2-Lite firmware.'
 	@echo 'make model    Convert the downloaded A2-Lite models to embedded float data.'
 	@echo 'make test     Run upstream A2 comparisons and sanitized host audio tests.'

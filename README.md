@@ -15,7 +15,8 @@ bash scripts/download_models.sh
 make
 ```
 
-`make install` runs the same installer. It installs the ARM compiler and DFU
+`make install` runs the same installer, and `make download-models` runs the
+download script. It installs the ARM compiler and DFU
 uploader, then fetches pinned versions of libDaisy and NAM Core. The download script saves the three
 Tone3000 models to Git-ignored `models/local/`. The build embeds their weights
 in the firmware. On Ubuntu, the installer also installs the build and download

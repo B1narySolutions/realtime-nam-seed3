@@ -6,7 +6,7 @@ A2_MODELS = $(addprefix models/local/,$(addsuffix .nam,$(A2_NAMES)))
 A2_HEADER = build/generated/embedded_a2_data.h
 
 $(A2_MODELS):
-	@echo 'Missing required amp models. Run bash scripts/download_models.sh first.' >&2
+	@echo 'Missing required amp models. Run make download-models first.' >&2
 	@exit 1
 
 $(A2_HEADER): $(A2_MODELS) $(A2_MANIFEST) scripts/convert_a2.py

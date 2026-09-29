@@ -11,7 +11,7 @@ Run everything from the repository root.
 | Command | Purpose |
 | --- | --- |
 | `bash scripts/install.sh` (or `make install`) | Install the ARM toolchain and dfu-util, and fetch pinned libDaisy and NeuralAmpModelerCore into `libs/` |
-| `bash scripts/download_models.sh` | Download the three `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
+| `bash scripts/download_models.sh` (or `make download-models`) | Download the three `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
 | `make` | Build libDaisy (`-Os`) and the firmware (`-O3`), embedding all three models |
 | `make test` | Host tests with ASan/UBSan: upstream NAM comparison, processor, audio path, converter |
 | `make upload` / `make monitor` | Flash over DFU (the running firmware reboots itself into DFU on `B`) and open the serial monitor; `PORT=/dev/cu.usbmodem…` picks a port |
