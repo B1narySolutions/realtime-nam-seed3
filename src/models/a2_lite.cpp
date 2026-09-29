@@ -36,6 +36,7 @@ void EnableCycleCounter() {
 #endif
 
 void A2Lite::DelayLine::Resize(int context_frames, int max_block_size, int read_span) {
+    // History plus one block; the mirror region lies past the ring's end.
     period = context_frames + max_block_size;
     mirror = read_span; // At most period: a pass never spans more than its layer's context plus a block.
     samples.assign(static_cast<std::size_t>(period + mirror) * kChannels, 0.0f);
@@ -48,9 +49,12 @@ void A2Lite::DelayLine::Fill(const float *frame) {
 }
 
 void A2Lite::DelayLine::Store(int index, const float *frames, int frame_count) {
+    // Copy the frames into the ring.
     float *primary = &samples[static_cast<std::size_t>(index) * kChannels];
     for (int i = 0; i < frame_count * kChannels; ++i)
         primary[i] = frames[i];
+
+    // Copy any that land in [0, mirror) again after the ring's end.
     float *copy = primary + static_cast<std::size_t>(period) * kChannels;
     for (int i = 0; i < (std::min(index + frame_count, mirror) - index) * kChannels; ++i)
         copy[i] = frames[i];
@@ -61,8 +65,12 @@ int A2Lite::DelayLine::Push(const float *frames, int frame_count) {
     // frame_count never exceeds one block, which is at most `period`.
     const int start = write;
     const int first = std::min(frame_count, period - write);
+
+    // Store up to the ring's end, then wrap to the start for the rest.
     Store(write, frames, first);
     Store(0, frames + first * kChannels, frame_count - first);
+
+    // Advance the write position, wrapping at the end.
     write += frame_count;
     if (write >= period)
         write -= period;
@@ -75,11 +83,14 @@ int A2Lite::DelayLine::Push(const float *frames, int frame_count) {
 static float LeakyRelu(float x) { return std::fmax(x, 0.01f * x); }
 
 A2Lite::A2Lite(const float *weights) : input_projection_(weights) {
+    // Skip the input projection; layer weights follow it.
     const float *next = weights + kChannels;
     for (std::size_t i = 0; i < layers_.size(); ++i) {
         auto &layer = layers_[i];
         layer.kernel_size = kKernelSizes[i];
         layer.dilation = kDilations[i];
+
+        // Point at each piece of this layer's weights, in stream order.
         layer.taps = next;
         layer.bias = layer.taps + layer.kernel_size * kWeightsPerTap;
         layer.conditioning = layer.bias + kChannels;
@@ -87,6 +98,8 @@ A2Lite::A2Lite(const float *weights) : input_projection_(weights) {
         layer.residual_bias = layer.residual + kChannels * kChannels;
         next += LayerWeightCount(layer.kernel_size);
     }
+
+    // The head's weights come last.
     head_taps_ = next;
     head_bias_ = next[kHeadTaps * kChannels];
     head_scale_ = next[kHeadTaps * kChannels + 1];
@@ -94,11 +107,15 @@ A2Lite::A2Lite(const float *weights) : input_projection_(weights) {
 
 void A2Lite::Reset(int max_block_size) {
     const int block = std::max(max_block_size, 1);
+
+    // Size each layer's history for its kernel's context plus one block.
     for (auto &layer : layers_)
         // A two-tap pass reads its second tap one dilation past its window.
         layer.history.Resize((layer.kernel_size - 1) * layer.dilation, block, block + layer.dilation);
     // The head fetches a window per tap.
     head_history_.Resize(kHeadTaps - 1, block, block);
+
+    // Allocate the per-block working buffers, then prewarm the delay lines to their silent steady state.
     residual_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     skip_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
     activation_.assign(static_cast<std::size_t>(block) * kChannels, 0.0f);
@@ -114,7 +131,10 @@ void A2Lite::Prewarm() {
     float residual[kChannels] = {}; // input projection of silence
     float skip[kChannels] = {};
     for (auto &layer : layers_) {
+        // Every past frame the layer sees is the same constant.
         layer.history.Fill(residual);
+
+        // Convolution of that constant, then the activation and skip sum.
         float a[kChannels];
         for (int out = 0; out < kChannels; ++out) {
             a[out] = layer.bias[out];
@@ -124,6 +144,8 @@ void A2Lite::Prewarm() {
             a[out] = LeakyRelu(a[out]);
             skip[out] += a[out];
         }
+
+        // Residual projection gives the next layer's constant input.
         for (int out = 0; out < kChannels; ++out) {
             float update = layer.residual_bias[out];
             for (int in = 0; in < kChannels; ++in)
@@ -131,6 +153,8 @@ void A2Lite::Prewarm() {
             residual[out] += update;
         }
     }
+
+    // The head sees the final skip sum as a constant.
     head_history_.Fill(skip);
 }
 
@@ -145,14 +169,19 @@ void A2Lite::Prewarm() {
 // tap weights plus the 15 output-stage constants exceed the 32 FPU
 // registers, and the per-frame spills cost more than the saved reload.
 template <int kTaps, bool kFromBias> static void AccumulateTaps(float *activation, const float *bias, const float *weights, const float *history, int history_stride, int frame_count) {
+    // Copy the weights and bias to locals so they stay in registers.
     float w[kTaps * kWeightsPerTap];
     for (int i = 0; i < kTaps * kWeightsPerTap; ++i)
         w[i] = weights[i];
     const float b0 = bias[0], b1 = bias[1], b2 = bias[2];
+
     for (int t = 0; t < frame_count; ++t, activation += kChannels, history += kChannels) {
+        // Start from the bias on a layer's first pass, else the running sums.
         float a0 = kFromBias ? b0 : activation[0];
         float a1 = kFromBias ? b1 : activation[1];
         float a2 = kFromBias ? b2 : activation[2];
+
+        // Multiply each tap's 3x3 weights by the history frame it reads.
         for (int tap = 0; tap < kTaps; ++tap) {
             const float *h = history + tap * history_stride;
             const float h0 = h[0], h1 = h[1], h2 = h[2];
@@ -167,6 +196,8 @@ template <int kTaps, bool kFromBias> static void AccumulateTaps(float *activatio
             a2 += tw[5] * h1;
             a2 += tw[8] * h2;
         }
+
+        // Store the sums for the next pass or the output stage.
         activation[0] = a0;
         activation[1] = a1;
         activation[2] = a2;
@@ -182,6 +213,7 @@ constexpr bool EveryKernelHasTwoTaps() {
 static_assert(EveryKernelHasTwoTaps(), "ProcessLayer starts each layer with a two-tap pass");
 
 void A2Lite::ProcessLayer(Layer &layer, const float *conditioning, int frame_count) {
+    // Save this block of layer input into the history.
     const int start = layer.history.Push(residual_.data(), frame_count);
 
     // Dilated convolution. Tap i reads (kernel_size - 1 - i) * dilation
@@ -190,7 +222,10 @@ void A2Lite::ProcessLayer(Layer &layer, const float *conditioning, int frame_cou
     float *activation = activation_.data();
     const int history_stride = layer.dilation * kChannels;
     const auto window = [&](int tap) { return layer.history.Window(start, (layer.kernel_size - 1 - tap) * layer.dilation); };
+    // First tap pair starts the sums from the bias.
     AccumulateTaps<2, true>(activation, layer.bias, layer.taps, window(0), history_stride, frame_count);
+
+    // Remaining taps, two at a time, plus a last single tap if odd.
     int tap = 2;
     for (; tap + 2 <= layer.kernel_size; tap += 2)
         AccumulateTaps<2, false>(activation, layer.bias, layer.taps + tap * kWeightsPerTap, window(tap), history_stride, frame_count);
@@ -199,6 +234,8 @@ void A2Lite::ProcessLayer(Layer &layer, const float *conditioning, int frame_cou
 
     // Input conditioning, leaky ReLU, skip connection, and the 1x1 residual
     // projection back onto the layer input.
+
+    // Copy the per-layer constants to locals so they stay in registers.
     const float c0 = layer.conditioning[0], c1 = layer.conditioning[1], c2 = layer.conditioning[2];
     const float rb0 = layer.residual_bias[0], rb1 = layer.residual_bias[1], rb2 = layer.residual_bias[2];
     float r[kWeightsPerTap];
@@ -206,17 +243,25 @@ void A2Lite::ProcessLayer(Layer &layer, const float *conditioning, int frame_cou
         r[i] = layer.residual[i];
     float *residual = residual_.data();
     float *skip = skip_.data();
+
     for (int t = 0; t < frame_count; ++t, activation += kChannels, residual += kChannels, skip += kChannels) {
+        // Add the conditioning input to the convolution sums.
         const float x = conditioning[t];
         float a0 = activation[0] + c0 * x;
         float a1 = activation[1] + c1 * x;
         float a2 = activation[2] + c2 * x;
+
+        // Nonlinearity.
         a0 = LeakyRelu(a0);
         a1 = LeakyRelu(a1);
         a2 = LeakyRelu(a2);
+
+        // Add to the skip sum.
         skip[0] += a0;
         skip[1] += a1;
         skip[2] += a2;
+
+        // Residual: project the activation back onto the layer input.
         residual[0] += rb0 + r[0] * a0 + r[1] * a1 + r[2] * a2;
         residual[1] += rb1 + r[3] * a0 + r[4] * a1 + r[5] * a2;
         residual[2] += rb2 + r[6] * a0 + r[7] * a1 + r[8] * a2;
@@ -224,14 +269,21 @@ void A2Lite::ProcessLayer(Layer &layer, const float *conditioning, int frame_cou
 }
 
 void A2Lite::ProcessHead(float *output, int frame_count) {
+    // Save this block of skip sums into the head's history.
     const int start = head_history_.Push(skip_.data(), frame_count);
 
+    // Start each output sample from the head bias.
     const float bias = head_bias_;
     for (int t = 0; t < frame_count; ++t)
         output[t] = bias;
+
+    // One pass per tap, oldest history frame first.
     for (int tap = 0; tap < kHeadTaps; ++tap) {
+        // This tap's weight per channel, and the history window it reads.
         const float w0 = head_taps_[tap * kChannels + 0], w1 = head_taps_[tap * kChannels + 1], w2 = head_taps_[tap * kChannels + 2];
         const float *history = head_history_.Window(start, kHeadTaps - 1 - tap);
+
+        // Dot product of the 3 channels with the weights, added to the output.
         for (int t = 0; t < frame_count; ++t, history += kChannels) {
             float o = output[t];
             o += w0 * history[0];
@@ -240,6 +292,8 @@ void A2Lite::ProcessHead(float *output, int frame_count) {
             output[t] = o;
         }
     }
+
+    // Apply the output scale.
     const float scale = head_scale_;
     for (int t = 0; t < frame_count; ++t)
         output[t] *= scale;
@@ -248,15 +302,23 @@ void A2Lite::ProcessHead(float *output, int frame_count) {
 void A2Lite::Process(const float *input, float *output, int frame_count) {
     A2_PROFILE_START;
     const float *x = input;
+
+    // Input projection: expand each mono sample into kChannels values.
     for (int t = 0; t < frame_count; ++t)
         for (int channel = 0; channel < kChannels; ++channel)
             residual_[t * kChannels + channel] = input_projection_[channel] * x[t];
+
+    // Clear the skip sum; every layer adds into it.
     std::fill(skip_.begin(), skip_.begin() + static_cast<std::ptrdiff_t>(frame_count) * kChannels, 0.0f);
     A2_PROFILE_LAP(profile::input_cycles);
+
+    // Run the whole block through each layer in turn.
     for (std::size_t i = 0; i < layers_.size(); ++i) {
         ProcessLayer(layers_[i], x, frame_count);
         A2_PROFILE_LAP(profile::layer_cycles[i]);
     }
+
+    // Head: 16-tap convolution of the skip sums down to the mono output.
     ProcessHead(output, frame_count);
     A2_PROFILE_LAP(profile::head_cycles);
 }
