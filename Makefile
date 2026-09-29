@@ -14,7 +14,7 @@ build:
 upload: build
 	@command -v dfu-util >/dev/null || { echo 'Run make install first.'; exit 1; }
 	@bash scripts/enter_dfu.sh "$(PORT)"
-	$(MAKE) -f make/firmware.mk program-dfu
+	$(MAKE) -f make/firmware.mk flash-dfu
 
 program-dfu: upload
 
