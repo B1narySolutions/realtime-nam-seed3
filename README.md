@@ -3,6 +3,11 @@
 Neural amp modeling on the Daisy Seed3 using libDaisy, with three A2-Lite models:
 Fender '65 Twin Reverb, Vox AC30 Chimey, and Marshall JCM800 (gain 5).
 
+![A2-Lite on the Daisy Seed: 552 µs of a 1000 µs callback budget](docs/images/stats.png)
+
+The callback time is measured on the Seed (see [docs/performance.md](docs/performance.md));
+the other numbers come from the model's shape and the accuracy renders below.
+
 ## Setup
 
 On macOS, install [Homebrew](https://brew.sh) and Apple's Command Line Tools
@@ -77,12 +82,50 @@ Bypass still runs the model so its state stays warm for A/B comparisons, so the
 load figures do not drop in bypass. All three models share one architecture and
 cost the same.
 
+## Results
+
+These figures are rendered on the host by `make viz`, from the same engine source
+the firmware runs. The accuracy figures use NAM's standard reamp signal when it
+is at `models/local/reamp_signal.wav`, and a synthetic guitar DI otherwise.
+
+### Accuracy
+
+The firmware engine matches upstream NAM Core to within float rounding: the
+difference is 121–123 dB below the output for every amp.
+
+![Firmware engine vs. NAM Core: overlaid output and spectra](docs/images/accuracy.png)
+
+The difference stays at that level across the whole 190 s reamp signal.
+
+![Output and difference level over time for each amp](docs/images/accuracy_over_time.png)
+
+### The three amps
+
+Small-signal frequency response of each capture, without a cabinet.
+
+![Small-signal frequency response of the three amps](docs/images/amp_frequency_response.png)
+
+Output level against input level. All three saturate well before full scale;
+the Twin capture is cranked and breaks up first.
+
+![Input vs. output level for a 220 Hz sine](docs/images/amp_gain_curve.png)
+
+A 110 Hz sine at three drive levels, showing how each amp clips.
+
+![Output waveform by drive level](docs/images/amp_drive_waveforms.png)
+
+Harmonics 2–9 of a 220 Hz sine at −20 dBFS input.
+
+![Harmonic distortion at −20 dBFS](docs/images/amp_harmonics.png)
+
 ## Development
 
 | Command | Purpose |
 | --- | --- |
 | `make` | Build firmware and embed all three models. |
 | `make test` | Compare against upstream NAM and run sanitized host audio tests. |
+| `make viz` | Render the figures above to `build/viz/` (sets up `.venv/` on first run). |
+| `make viz-docs` | Render the figures and copy them to `docs/images/`. |
 | `make clean` | Remove build outputs; keep downloaded models and dependencies. |
 | `make format` | Format C/C++ source in `src/` and `tests/`. |
 | `make compiledb` | Generate the clangd compilation database. |

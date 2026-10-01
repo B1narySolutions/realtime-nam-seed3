@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := build
 JOBS ?= 4
 
-.PHONY: install download-models build model upload program-dfu monitor format compiledb test viz clean help
+.PHONY: install download-models build model upload program-dfu monitor format compiledb test viz viz-docs clean help
 install:
 	bash scripts/install.sh
 
@@ -32,6 +32,11 @@ viz:
 	@test -f libs/NeuralAmpModelerCore/Dependencies/eigen/Eigen/Core || { echo 'Missing NAM Core (the accuracy reference); run make install.'; exit 1; }
 	$(MAKE) -f viz/viz.mk viz
 
+# Refresh the README's figures from a fresh render.
+viz-docs: viz
+	@mkdir -p docs/images
+	cp build/viz/*.png docs/images/
+
 model:
 	$(MAKE) -f make/firmware.mk build/generated/embedded_a2_data.h
 
@@ -56,6 +61,7 @@ help:
 	@echo 'make model    Convert the downloaded A2-Lite models to embedded float data.'
 	@echo 'make test     Run upstream A2 comparisons and sanitized host audio tests.'
 	@echo 'make viz      Render presentation figures of the amp models to build/viz/.'
+	@echo 'make viz-docs Render the figures and copy them to docs/images/ for the README.'
 	@echo 'make upload   Build and flash via USB; the running firmware enters DFU itself (else BOOT + RESET).'
 	@echo 'make monitor  Open USB serial in screen (optional PORT=/dev/cu.usbmodem...).'
 	@echo 'make format   Format C/C++ files under src/ using .clang-format.'
