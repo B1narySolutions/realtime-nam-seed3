@@ -6,6 +6,7 @@
 /.cache/clangd/
 .DS_Store
 
-# Python tooling caches.
+# Python tooling caches and the viz/ virtual environment.
+/.venv/
 __pycache__/
 *.py[cod]
