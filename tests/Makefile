@@ -4,7 +4,7 @@ NAM_DIR = libs/NeuralAmpModelerCore
 include make/models.mk
 TEST_BIN = build/tests/nam_processor_test
 SOURCES = tests/nam_processor_test.cpp src/audio/nam_processor.cpp
-FLAGS = -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
+FLAGS = -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
 INCLUDES = -Isrc -Itests
 include tests/a2.mk
 
