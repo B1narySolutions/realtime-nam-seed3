@@ -11,6 +11,7 @@ static std::atomic<uint32_t> max_callback_us{0};
 static std::atomic<uint32_t> total_callback_us{0};
 static std::atomic<uint32_t> overruns{0};
 static std::atomic<uint32_t> requested_amp{1};
+static std::atomic<bool> requested_cabinet{true};
 static std::atomic<bool> bootloader_requested{false};
 static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio counters must be lock-free");
 // Only changed while audio is stopped.
@@ -49,10 +50,13 @@ void AudioCallback(daisy::AudioHandle::InputBuffer input_channels, daisy::AudioH
 // USB interrupt: record a command only. Never allocate or construct a model
 // here.
 void OnUsbReceive(uint8_t *data, uint32_t *byte_count) {
-    // '0'-'3' select bypass or an amp; 'B' asks for the DFU bootloader.
+    // '0'-'3' select bypass or an amp; 'C' toggles the cabinet; 'B' asks for
+    // the DFU bootloader.
     for (uint32_t i = 0; i < *byte_count; ++i) {
         if (data[i] >= '0' && data[i] <= '3')
             requested_amp.store(data[i] - '0', std::memory_order_relaxed);
+        else if (data[i] == 'C' || data[i] == 'c')
+            requested_cabinet.store(!requested_cabinet.load(std::memory_order_relaxed), std::memory_order_relaxed);
         else if (data[i] == 'B')
             bootloader_requested.store(true, std::memory_order_relaxed);
     }
@@ -128,7 +132,7 @@ static void ReportProfile(AppState &state) {
 }
 #endif
 
-static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 B=DFU ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
+static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 C=cab B=DFU ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
 
 static void InitHardware() {
     seed.Init(true); // 480 MHz boost; the model needs the headroom.
@@ -174,6 +178,19 @@ static void ApplyPendingAmpCommand(AppState &state) {
         seed.PrintLine(">>> %s %s", AmpName(state.selected_amp), state.model_ready ? "loaded" : "FAILED to load");
 }
 
+static void ApplyPendingCabinetCommand() {
+    // Do nothing unless the USB handler has toggled the cabinet.
+    const bool enabled = requested_cabinet.load(std::memory_order_relaxed);
+    if (enabled == audio.CabinetEnabled())
+        return;
+
+    // Stop DMA so the callback never sees the filter mid-reset.
+    seed.StopAudio();
+    audio.SetCabinet(enabled);
+    seed.StartAudio(AudioCallback);
+    seed.PrintLine(">>> cabinet %s", enabled ? "on" : "off");
+}
+
 static void ReportStatus(AppState &state) {
     // Report once per second.
     const uint32_t now_ms = daisy::System::GetNow();
@@ -202,7 +219,8 @@ static void ReportStatus(AppState &state) {
 
     // Print the status line.
     const char *mode = bypass ? "bypass" : (state.model_ready ? "active" : "failed");
-    seed.PrintLine("[%-6s %-22s]  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
+    const char *cabinet = active ? (audio.CabinetEnabled() ? "on" : "off") : "-";
+    seed.PrintLine("[%-6s %-22s]  cab %-3s  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", cabinet, static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
 #ifdef A2_LITE_PROFILE
     state.profile_blocks += callbacks;
     if (state.report_count % 5 == 0)
@@ -223,6 +241,7 @@ int main() {
     while (true) {
         EnterBootloaderIfRequested();
         ApplyPendingAmpCommand(state);
+        ApplyPendingCabinetCommand();
         ReportStatus(state);
         seed.DelayMs(1);
     }

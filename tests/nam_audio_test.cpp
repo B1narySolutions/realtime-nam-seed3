@@ -1,4 +1,5 @@
 #include "allocation_guard.h"
+#include "audio/cab_filter.h"
 #include "audio/nam_audio.h"
 #include "audio_stimulus.h"
 #include <algorithm>
@@ -9,6 +10,14 @@
 #include <iostream>
 #include <limits>
 #include <vector>
+
+static std::vector<float> ReadReference(const char *path) {
+    std::ifstream file(path, std::ios::binary);
+    std::vector<float> reference(kTestSamples);
+    file.read(reinterpret_cast<char *>(reference.data()), reference.size() * sizeof(float));
+    assert(file.gcount() == static_cast<std::streamsize>(reference.size() * sizeof(float)));
+    return reference;
+}
 
 // Usage: nam_audio_test <reference.f32>... with one upstream rendering per
 // AmpId, in models/amps.json order.
@@ -22,10 +31,9 @@ int main(int argc, char **argv) {
     // Reuse the audio path across switches to every amp, then back to the first.
     for (int step = 0; step <= kAmpCount; ++step) {
         const int id = step % kAmpCount + 1;
-        std::ifstream file(argv[id], std::ios::binary);
-        std::vector<float> reference(kTestSamples);
-        file.read(reinterpret_cast<char *>(reference.data()), reference.size() * sizeof(float));
-        assert(file.gcount() == static_cast<std::streamsize>(reference.size() * sizeof(float)));
+        // The cabinet is on by default, so expect upstream's output through it.
+        std::vector<float> reference = ReadReference(argv[id]);
+        CabFilter().Process(reference.data(), reference.size());
         assert(audio.LoadAmpModel(static_cast<AmpId>(id)));
         input.fill(0.5f);
         audio.Process(input.data(), left.data(), right.data(), 49, false);
@@ -74,9 +82,21 @@ int main(int argc, char **argv) {
         for (int i = 0; i < 3; ++i)
             assert(std::isfinite(left[i]) && std::fabs(left[i]) <= 1);
     }
+    // With the cabinet off, the output is upstream's again.
+    const std::vector<float> raw_reference = ReadReference(argv[1]);
+    assert(audio.LoadAmpModel(static_cast<AmpId>(1)));
+    audio.SetCabinet(false);
+    for (int offset = 0; offset < kTestSamples; offset += 48) {
+        for (int i = 0; i < 48; ++i)
+            input[i] = TestInput(offset + i);
+        audio.Process(input.data(), left.data(), right.data(), 48, false);
+        for (int i = 0; i < 48; ++i)
+            assert(std::fabs(left[i] - std::clamp(raw_reference[offset + i] * NamAudio::kOutputGain, -1.0f, 1.0f)) < 1e-4f);
+    }
+    audio.SetCabinet(true);
     assert(!audio.LoadAmpModel(static_cast<AmpId>(99)));
     input.fill(0.5f);
     audio.Process(input.data(), left.data(), right.data(), 48, false);
     assert(left[0] == 0.4f && right[47] == 0.4f);
-    std::cout << "A2 audio: switching, bypass, bounds, and no processing allocations passed\n";
+    std::cout << "A2 audio: switching, bypass, cabinet, bounds, and no processing allocations passed\n";
 }

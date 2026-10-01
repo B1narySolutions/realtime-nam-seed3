@@ -43,11 +43,18 @@ to switch models or bypass; no Enter is needed:
 | `1` | Fender '65 Twin Reverb |
 | `2` | Vox AC30 Chimey |
 | `3` | Marshall JCM800 (gain 5) |
+| `C` | Cabinet EQ on or off (starts on) |
 | `B` | Reboot into DFU mode for flashing |
 
 Audio runs at 48 kHz, with the left input processed and sent to both outputs.
-Switching models or toggling bypass briefly interrupts playback. These are
-amp-only models; cabinet filtering and hardware gain calibration are not implemented.
+Switching models or toggling bypass or the cabinet briefly interrupts playback.
+
+The models capture the amps alone, which sounds harsh without a speaker. A
+fixed cabinet EQ after the model stands in for one: it cuts below 75 Hz,
+adds a speaker resonance at 110 Hz and presence at 2.5 kHz, scoops 400 Hz,
+and rolls off at 24 dB/octave above 5 kHz. Press `C` to compare with the
+raw amp. Bypass skips the cabinet too. It is an EQ, not a measured cabinet
+impulse response, and hardware gain calibration is not implemented.
 
 If multiple serial ports are connected, use `make monitor PORT=/dev/cu.usbmodem…`.
 Exit the monitor with **Ctrl-A**, then **K**, then **Y**.
@@ -57,23 +64,24 @@ Exit the monitor with **Ctrl-A**, then **K**, then **Y**.
 The firmware prints one status line per second:
 
 ```
---- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 B=DFU ---
-[active Fender Twin65          ]  avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
+--- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 C=cab B=DFU ---
+[active Fender Twin65          ]  cab on   avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
 >>> bypass
-[bypass -                      ]  avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
+[bypass -                      ]  cab -    avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
 ```
 
 | Field | Meaning |
 | --- | --- |
 | `[mode amp]` | `active` with the running model, `bypass`, or `failed` if the model did not load (audio is bypassed). |
+| `cab` | Whether the cabinet EQ is on; `-` when no model is running. |
 | `avg` | Mean audio-callback time over the last second, as a percentage of the block budget and in microseconds. |
 | `peak` | Longest single callback over the last second. |
 | `headroom` | Budget minus peak: how much slower the callback could get before an overrun. Negative means an overrun happened. |
 | `blocks` | Callbacks in the last second (1000 at 48 samples per block and 48 kHz). |
 | `overruns` | Callbacks that exceeded the budget in the last second. Lines with overruns are marked `<-- OVERRUN`. |
 
-The header repeats every 20 lines, and `>>>` lines record model switches and
-bypass. Bypass skips the model and passes the input straight through, so the
+The header repeats every 20 lines, and `>>>` lines record model switches,
+bypass, and cabinet toggles. Bypass skips the model and passes the input straight through, so the
 load drops to a few microseconds; leaving bypass reloads the selected model.
 All three models share one architecture and cost the same.
 

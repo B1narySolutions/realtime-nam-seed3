@@ -14,6 +14,9 @@ float ApplyOutputGainAndClamp(float sample) {
 bool NamAudio::LoadAmpModel(AmpId amp) {
     ready_ = false;
 
+    // The new model starts from silence, so the cabinet should too.
+    cabinet_.Reset();
+
     // Free the old model first; two never coexist (delay lines take much of SRAM).
     processor_.ClearModel();
 
@@ -26,10 +29,19 @@ bool NamAudio::LoadAmpModel(AmpId amp) {
     return ready_;
 }
 
+void NamAudio::SetCabinet(bool enabled) {
+    cabinet_enabled_ = enabled;
+    cabinet_.Reset();
+}
+
 void NamAudio::Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model) {
     // Run the model, or pass the input through if bypassed, not loaded, or the block is too big.
     const bool processed = !bypass_model && ProcessModel(input_left, frame_count);
     const float *source = processed ? output_.data() : input_left;
+
+    // Shape the amp's output through the cabinet EQ; the clean input skips it.
+    if (processed && cabinet_enabled_)
+        cabinet_.Process(output_.data(), frame_count);
 
     // Apply output gain and clamp, and copy the mono signal to both channels.
     for (std::size_t i = 0; i < frame_count; ++i) {

@@ -1,5 +1,5 @@
 TARGET = passthrough
-CPP_SOURCES = src/main.cpp src/audio/nam_processor.cpp src/audio/nam_audio.cpp src/models/amp_models.cpp src/models/a2_lite.cpp
+CPP_SOURCES = src/main.cpp src/audio/nam_processor.cpp src/audio/nam_audio.cpp src/audio/cab_filter.cpp src/models/amp_models.cpp src/models/a2_lite.cpp
 C_INCLUDES = -Isrc -Ibuild/generated
 CPP_STANDARD = -std=gnu++20
 # Optimize application and model code for speed; libDaisy builds with -Os.
