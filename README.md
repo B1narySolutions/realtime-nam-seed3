@@ -77,10 +77,10 @@ The firmware prints one status line per second:
 | `blocks` | Callbacks in the last second (1000 at 48 samples per block and 48 kHz). |
 | `overruns` | Callbacks that exceeded the budget in the last second. Lines with overruns are marked `<-- OVERRUN`. |
 
-The header repeats every 20 lines, and `>>>` lines record model switches.
-Bypass still runs the model so its state stays warm for A/B comparisons, so the
-load figures do not drop in bypass. All three models share one architecture and
-cost the same.
+The header repeats every 20 lines, and `>>>` lines record model switches and
+bypass. Bypass skips the model and passes the input straight through, so the
+load drops to a few microseconds; leaving bypass reloads the selected model.
+All three models share one architecture and cost the same.
 
 ## Results
 
