@@ -3,11 +3,6 @@
 Neural amp modeling on the Daisy Seed3 using libDaisy, with three A2-Lite models:
 Fender '65 Twin Reverb, Vox AC30 Chimey, and Marshall JCM800 (gain 5).
 
-![A2-Lite on the Daisy Seed: 552 µs of a 1000 µs callback budget](docs/images/stats.png)
-
-The callback time is measured on the Seed (see [docs/performance.md](docs/performance.md));
-the other numbers come from the model's shape and the accuracy renders below.
-
 ## Setup
 
 On macOS, install [Homebrew](https://brew.sh) and Apple's Command Line Tools
@@ -125,7 +120,7 @@ Harmonics 2–9 of a 220 Hz sine at −20 dBFS input.
 | `make` | Build firmware and embed all three models. |
 | `make test` | Compare against upstream NAM and run sanitized host audio tests. |
 | `make viz` | Render the figures above to `build/viz/` (sets up `.venv/` on first run). |
-| `make viz-docs` | Render the figures and copy them to `docs/images/`. |
+| `make viz-docs` | Render the figures and copy the ones above to `docs/images/`. |
 | `make clean` | Remove build outputs; keep downloaded models and dependencies. |
 | `make format` | Format C/C++ source in `src/` and `tests/`. |
 | `make compiledb` | Generate the clangd compilation database. |
