@@ -2,7 +2,8 @@
 
 Run with make viz, which builds build/viz/render and the .venv first. Every
 signal is rendered through the firmware's A2-Lite engine on the host; the
-accuracy figure also renders it through upstream NAM Core for comparison.
+accuracy figure also renders it through upstream NAM Core for comparison, and
+the cabinet figures through the firmware's cabinet EQ.
 """
 
 import json
@@ -89,7 +90,8 @@ def load_amps():
 
 
 def render(kind, model, signal):
-    """Runs a signal through the "engine" (by AmpId) or "upstream" (by .nam path)."""
+    """Runs a signal through the "engine" or "engine-cab" (by AmpId), "cab"
+    (model "none"), or "upstream" (by .nam path)."""
     with tempfile.TemporaryDirectory() as directory:
         source, result = Path(directory, "in.f32"), Path(directory, "out.f32")
         np.asarray(signal, np.float32).tofile(source)
@@ -193,22 +195,25 @@ def welch_db(signal, size=8192):
     return np.fft.rfftfreq(size, 1 / FS), 10 * np.log10(np.maximum(power, 1e-30))
 
 
-def frequency_response(model_id, amplitude):
+def smooth_sixth_octave(freqs, power):
+    """Averages linear power over 1/6-octave bands on log-spaced centres; returns dB."""
+    centres = np.geomspace(40, 18000, 300)
+    smoothed = [np.mean(power[(freqs >= f * 2 ** (-1 / 12)) & (freqs <= f * 2 ** (1 / 12))]) for f in centres]
+    return centres, 10 * np.log10(smoothed)
+
+
+def frequency_response(model_id, amplitude, kind="engine"):
     """Small-signal magnitude response from a log sweep, smoothed to 1/6 octave."""
     sweep = log_sweep(amplitude)
     padded = np.concatenate([sweep, np.zeros(FS)])
-    output = render("engine", model_id, padded)
+    output = render(kind, model_id, padded)
     output -= np.mean(output[-FS // 2:])
 
     # Regularized deconvolution: output spectrum over input spectrum.
     x, y = np.fft.rfft(padded), np.fft.rfft(output)
     response = y * np.conj(x) / (np.abs(x) ** 2 + 1e-3 * np.max(np.abs(x)) ** 2)
     freqs = np.fft.rfftfreq(len(padded), 1 / FS)
-
-    # Fractional-octave smoothing of power onto log-spaced centres.
-    centres = np.geomspace(40, 18000, 300)
-    smoothed = [np.mean(np.abs(response[(freqs >= f * 2 ** (-1 / 12)) & (freqs <= f * 2 ** (1 / 12))]) ** 2) for f in centres]
-    return centres, 10 * np.log10(smoothed)
+    return smooth_sixth_octave(freqs, np.abs(response) ** 2)
 
 
 def harmonic_levels(output, frequency, count):
@@ -523,6 +528,171 @@ def harmonics_figure(amps, level=-20, count=9):
     save(figure, "amp_harmonics.png")
 
 
+# ------------------------------------------------------------ cabinet figures
+
+
+def cabinet_stages():
+    """(shape, frequency, Q, gain) rows of the stage table in cab_filter.cpp, so
+    the annotations follow the firmware's design."""
+    source = (ROOT / "src" / "audio" / "cab_filter.cpp").read_text()
+    rows = re.findall(r"\{Shape::(\w+),\s*([\d.]+),\s*([\d.]+),\s*(-?[\d.]+)\}", source)
+    return [(shape, float(frequency), float(q), float(gain)) for shape, frequency, q, gain in rows]
+
+
+def hz(frequency):
+    return f"{frequency / 1000:g} kHz" if frequency >= 1000 else f"{frequency:g} Hz"
+
+
+def cabinet_response_figure():
+    """The cabinet EQ alone: the exact response of its impulse response, with
+    each stage marked where it acts."""
+    impulse = np.zeros(FS)
+    impulse[0] = 1.0
+    freqs = np.fft.rfftfreq(FS, 1 / FS)
+    response = db(np.fft.rfft(render("cab", "none", impulse)))
+
+    stages = cabinet_stages()
+    figure = slide("Cabinet EQ", f"{len(stages)} biquads after the amp model, standing in for a 12-inch speaker. Exact response of the firmware's CabFilter.")
+    axis = figure.subplots()
+    figure.subplots_adjust(**CONTENT)
+    axis.axhline(0, color=AXIS, linewidth=1.5)
+    axis.semilogx(freqs[1:], response[1:], color=TEXT, linewidth=2.5)
+
+    # One marker per stage; the low-pass stages share a corner, so they are
+    # labelled once with their combined slope.
+    low_passes = sum(1 for shape, *_ in stages if shape == "LowPass")
+    labelled = set()
+    for shape, frequency, _, gain in stages:
+        if (shape, frequency) in labelled:
+            continue
+        labelled.add((shape, frequency))
+        if shape == "HighPass":
+            text, offset = f"High-pass\n{hz(frequency)}", (14, -34)
+        elif shape == "LowPass":
+            text, offset = f"Low-pass {hz(frequency)}\n{12 * low_passes} dB/octave", (14, 6)
+        else:
+            text, offset = minus(f"{gain:+g} dB\n{hz(frequency)}"), (0, 22) if gain > 0 else (0, -44)
+        level = np.interp(frequency, freqs, response)
+        axis.plot(frequency, level, "o", color=TEXT, markersize=9, markeredgecolor=SURFACE, markeredgewidth=2)
+        axis.annotate(text, (frequency, level), xytext=offset, textcoords="offset points", ha="center" if shape == "Peak" else "left", fontsize=14, color=TEXT_SECONDARY, linespacing=1.3)
+
+    axis.set_xlim(20, 20000)
+    axis.set_ylim(-60, 12)
+    axis.set_xticks([20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000], ["20", "50", "100", "200", "500", "1k", "2k", "5k", "10k", "20k"])
+    axis.set_yticks(range(-60, 11, 10), [minus(v) for v in range(-60, 11, 10)])
+    axis.set_xlabel("Frequency (Hz)")
+    axis.set_ylabel("Gain (dB)")
+    save(figure, "cab_response.png")
+
+
+def with_cabinet_legend():
+    return [
+        plt.Line2D([], [], color=REFERENCE, linewidth=2.5, label="Amp only"),
+        plt.Line2D([], [], color=TEXT_SECONDARY, linewidth=2.5, label="With cabinet"),
+    ]
+
+
+def cabinet_amp_response_figure(amps):
+    """Per amp, the small-signal response with and without the cabinet."""
+    figure = slide("Amp + cabinet frequency response", "−50 dBFS log sweep, 1/6-octave smoothing. Both curves shifted together to put the amp-only curve at 0 dB at 1 kHz.", legend=with_cabinet_legend())
+    axes = figure.subplots(1, len(amps), sharey=True, gridspec_kw={"wspace": 0.08})
+    figure.subplots_adjust(**CONTENT)
+
+    for column, (axis, amp) in enumerate(zip(axes, amps)):
+        freqs, amp_only = frequency_response(amp["id"], amplitude=10 ** (-50 / 20))
+        _, with_cab = frequency_response(amp["id"], amplitude=10 ** (-50 / 20), kind="engine-cab")
+        # One shift for both, so the gap between them is the cabinet.
+        shift = np.interp(1000, freqs, amp_only)
+        axis.semilogx(freqs, amp_only - shift, color=REFERENCE, linewidth=2.5)
+        axis.semilogx(freqs, with_cab - shift, color=amp["color"], linewidth=2.5)
+        axis.set_title(amp["name"])
+        axis.set_xlim(40, 18000)
+        axis.set_ylim(-45, 15)
+        axis.set_xticks([100, 1000, 10000], ["100", "1k", "10k"])
+        axis.set_xlabel("Frequency (Hz)")
+        if column == 0:
+            axis.set_yticks(range(-40, 11, 10), [minus(v) for v in range(-40, 11, 10)])
+            axis.set_ylabel("Level re amp at 1 kHz (dB)")
+
+    save(figure, "cab_amp_response.png")
+
+
+def cabinet_spectrum_figure(amps):
+    """Per amp, the average spectrum of a driven riff with and without the
+    cabinet, and how much energy above the low-pass corner it removes."""
+    riff = guitar_riff()
+    corner = max(frequency for shape, frequency, *_ in cabinet_stages() if shape == "LowPass")
+    figure = slide("What the cabinet removes", f"Average spectrum of a 4 s synthetic guitar riff, 1/6-octave smoothing. Labels: energy change above {hz(corner)}.", legend=with_cabinet_legend())
+    axes = figure.subplots(1, len(amps), sharey=True, gridspec_kw={"wspace": 0.08})
+    figure.subplots_adjust(**CONTENT)
+
+    for column, (axis, amp) in enumerate(zip(axes, amps)):
+        spectra = []
+        for kind in ("engine", "engine-cab"):
+            output = render(kind, amp["id"], riff)
+            freqs, power_db = welch_db(output - output.mean())
+            spectra.append((freqs, 10 ** (power_db / 10)))
+
+        # Fizz: energy above the low-pass corner, with the cabinet over without.
+        (freqs, amp_only), (_, with_cab) = spectra
+        above = freqs > corner
+        change = 10 * np.log10(np.sum(with_cab[above]) / np.sum(amp_only[above]))
+        print(f"  {amp['name']}: {change:.1f} dB above {hz(corner)} with the cabinet")
+
+        centres, amp_only_db = smooth_sixth_octave(freqs, amp_only)
+        _, with_cab_db = smooth_sixth_octave(freqs, with_cab)
+        axis.semilogx(centres, amp_only_db, color=REFERENCE, linewidth=2.5)
+        axis.semilogx(centres, with_cab_db, color=amp["color"], linewidth=2.5)
+        axis.fill_between(centres, with_cab_db, amp_only_db, where=centres > corner, color=amp["color"], alpha=0.12, linewidth=0)
+        # Headline in the empty lower left, clear of the curves.
+        axis.text(0.05, 0.20, minus(f"{change:.0f} dB"), transform=axis.transAxes, ha="left", va="bottom", fontsize=26, fontweight="bold")
+        axis.text(0.05, 0.13, f"above {hz(corner)}", transform=axis.transAxes, ha="left", va="bottom", fontsize=14, color=TEXT_SECONDARY)
+        axis.set_title(amp["name"])
+        axis.set_xlim(40, 18000)
+        axis.set_xticks([100, 1000, 10000], ["100", "1k", "10k"])
+        axis.set_xlabel("Frequency (Hz)")
+        if column == 0:
+            axis.set_ylabel("Power (dB)")
+            axis.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda value, _: minus(f"{value:g}")))
+
+    save(figure, "cab_spectrum.png")
+
+
+def cabinet_waveform_figure(amps, level=-8, frequency=110):
+    """Per amp, two cycles of a hard-driven sine with and without the cabinet."""
+    cycle = FS // frequency
+    period = cycle * 2
+    t = np.arange(period) / FS * 1000
+    figure = slide("Driven waveform through the cabinet", f"{frequency} Hz sine at {minus(level)} dBFS in. Two cycles, each normalized to its own peak; the cabinet's output is time-aligned to the amp's.", legend=with_cabinet_legend())
+    axes = figure.subplots(1, len(amps), sharey=True, gridspec_kw={"wspace": 0.08})
+    figure.subplots_adjust(**CONTENT)
+
+    for column, (axis, amp) in enumerate(zip(axes, amps)):
+        stimulus = sine(frequency, 10 ** (level / 20), 0.5)
+        amp_only = render("engine", amp["id"], stimulus)
+        with_cab = render("engine-cab", amp["id"], stimulus)
+        amp_only = amp_only[-period:] - amp_only[-period:].mean()
+
+        # The cabinet's low-frequency phase shift would slide its trace
+        # sideways. The output is periodic by now, so pick the lag within one
+        # cycle that best lines it up with the amp-only trace.
+        windows = [with_cab[len(with_cab) - period - lag: len(with_cab) - lag] for lag in range(cycle)]
+        windows = [window - window.mean() for window in windows]
+        aligned = max(windows, key=lambda window: np.dot(window, amp_only))
+
+        for output, color in ((amp_only, REFERENCE), (aligned, amp["color"])):
+            axis.plot(t, output / np.abs(output).max(), color=color, linewidth=2.5)
+        axis.set_title(amp["name"])
+        axis.set_xlim(0, t[-1])
+        axis.set_ylim(-1.2, 1.2)
+        axis.set_xlabel("Time (ms)")
+        if column == 0:
+            axis.set_yticks([-1, 0, 1], [minus(-1), "0", "1"])
+            axis.set_ylabel("Output (normalized)")
+
+    save(figure, "cab_waveform.png")
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     amps = load_amps()
@@ -535,6 +705,10 @@ def main():
     drive_figure(amps)
     waveform_figure(amps)
     harmonics_figure(amps)
+    cabinet_response_figure()
+    cabinet_amp_response_figure(amps)
+    cabinet_spectrum_figure(amps)
+    cabinet_waveform_figure(amps)
 
 
 if __name__ == "__main__":

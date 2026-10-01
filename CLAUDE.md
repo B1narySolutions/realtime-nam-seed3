@@ -14,7 +14,7 @@ Run everything from the repository root.
 | `bash scripts/download_models.sh` (or `make download-models`) | Download the three `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
 | `make` | Build libDaisy (`-Os`) and the firmware (`-O3`), embedding all three models |
 | `make test` | Host tests with ASan/UBSan: upstream NAM comparison, processor, cabinet, audio path, converter |
-| `make viz` | Render presentation figures (engine vs upstream accuracy, amp comparisons) to `build/viz/`, creating `.venv/` from `viz/requirements.txt` |
+| `make viz` | Render presentation figures (engine vs upstream accuracy, amp comparisons, the cabinet EQ) to `build/viz/`, creating `.venv/` from `viz/requirements.txt` |
 | `make viz-docs` | `make viz`, then copy the README's figures (all but the stats slide) to `docs/images/`. Rerun after changing the engine or `viz/figures.py` |
 | `make upload` / `make monitor` | Flash over DFU (the running firmware reboots itself into DFU on `B`) and open the serial monitor; `PORT=/dev/cu.usbmodem…` picks a port |
 | `make upload PROFILE=1` | Add per-layer DWT cycle counts to the serial output. Run `make clean` when toggling it, because objects don't track flags |

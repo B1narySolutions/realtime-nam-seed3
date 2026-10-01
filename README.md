@@ -104,7 +104,7 @@ The difference stays at that level across the whole 190 s reamp signal.
 
 ### The three amps
 
-Small-signal frequency response of each capture, without a cabinet.
+Small-signal frequency response of each capture, without the cabinet EQ.
 
 ![Small-signal frequency response of the three amps](docs/images/amp_frequency_response.png)
 
@@ -120,6 +120,26 @@ A 110 Hz sine at three drive levels, showing how each amp clips.
 Harmonics 2–9 of a 220 Hz sine at −20 dBFS input.
 
 ![Harmonic distortion at −20 dBFS](docs/images/amp_harmonics.png)
+
+### The cabinet
+
+The cabinet EQ on its own, measured from the firmware filter's impulse response.
+
+![Cabinet EQ response with each stage marked](docs/images/cab_response.png)
+
+Each amp's small-signal response with and without it. The cabinet keeps each
+amp's voicing through the mids and removes what a speaker could not reproduce.
+
+![Amp-only and amp-plus-cabinet frequency response](docs/images/cab_amp_response.png)
+
+On a driven guitar riff, the cabinet cuts energy above 5 kHz by about 9–10 dB
+and the top octave by far more; that region is the fizz of an amp heard without a speaker.
+
+![Riff spectrum with and without the cabinet](docs/images/cab_spectrum.png)
+
+The same low-pass rounds the edges of a clipped waveform.
+
+![Driven 110 Hz waveform with and without the cabinet](docs/images/cab_waveform.png)
 
 ## Development
 

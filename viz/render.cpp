@@ -1,12 +1,18 @@
 // Renders a mono float32 file through one amp model, for the figures in viz/.
 //
 // Usage: render engine <amp-id> <input.f32> <output.f32>
+//        render engine-cab <amp-id> <input.f32> <output.f32>
+//        render cab none <input.f32> <output.f32>
 //        render upstream <model.nam> <input.f32> <output.f32>
 //
 // "engine" runs this firmware's A2-Lite engine on the embedded weights, in
-// the firmware's 48-frame blocks. "upstream" runs NAM Core's generic WaveNet
-// on the original .nam file, the same reference make test compares against.
+// the firmware's 48-frame blocks. "engine-cab" follows it with the firmware's
+// cabinet EQ, as NamAudio does, and "cab" runs the cabinet EQ alone. Neither
+// applies NamAudio's output gain or clamp. "upstream" runs NAM Core's generic
+// WaveNet on the original .nam file, the same reference make test compares
+// against.
 #include "NAM/get_dsp.h"
+#include "audio/cab_filter.h"
 #include "models/amp_models.h"
 #include <algorithm>
 #include <cstdlib>
@@ -40,22 +46,38 @@ template <typename Process> static std::vector<float> RenderBlocks(const std::ve
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        std::cerr << "usage: render engine <amp-id> | upstream <model.nam>  <input.f32> <output.f32>\n";
+        std::cerr << "usage: render engine <amp-id> | engine-cab <amp-id> | cab none | upstream <model.nam>  <input.f32> <output.f32>\n";
         return 2;
     }
     const std::string kind = argv[1];
     const std::vector<float> input = ReadSamples(argv[3]);
     std::vector<float> output;
 
-    // Firmware engine: the same model the Seed builds, reset and prewarmed.
-    if (kind == "engine") {
+    // Firmware engine: the same model the Seed builds, reset and prewarmed,
+    // optionally followed by the cabinet.
+    if (kind == "engine" || kind == "engine-cab") {
         auto model = CreateAmpModel(static_cast<AmpId>(std::atoi(argv[2])));
         if (!model) {
             std::cerr << "unknown amp id " << argv[2] << "\n";
             return 2;
         }
         model->Reset(kBlockSize);
-        output = RenderBlocks(input, [&](const float *in, float *out, int frames) { model->Process(in, out, frames); });
+        CabFilter cabinet;
+        const bool with_cabinet = kind == "engine-cab";
+        output = RenderBlocks(input, [&](const float *in, float *out, int frames) {
+            model->Process(in, out, frames);
+            if (with_cabinet)
+                cabinet.Process(out, frames);
+        });
+    }
+
+    // Firmware cabinet EQ on its own.
+    else if (kind == "cab") {
+        CabFilter cabinet;
+        output = RenderBlocks(input, [&](const float *in, float *out, int frames) {
+            std::copy(in, in + frames, out);
+            cabinet.Process(out, frames);
+        });
     }
 
     // Upstream reference: NAM Core's Reset also prewarms by default.

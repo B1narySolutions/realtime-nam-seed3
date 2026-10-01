@@ -35,7 +35,7 @@ viz:
 # Refresh the README's figures from a fresh render. The stats slide stays in
 # build/viz/ only: its speedup is measured against our own first engine,
 # which means little outside the project's presentations.
-README_FIGURES = accuracy accuracy_over_time amp_frequency_response amp_gain_curve amp_drive_waveforms amp_harmonics
+README_FIGURES = accuracy accuracy_over_time amp_frequency_response amp_gain_curve amp_drive_waveforms amp_harmonics cab_response cab_amp_response cab_spectrum cab_waveform
 viz-docs: viz
 	@mkdir -p docs/images
 	cp $(addprefix build/viz/,$(addsuffix .png,$(README_FIGURES))) docs/images/
