@@ -22,26 +22,48 @@ case $(uname -s) in
         done
         ;;
     Linux)
-        command -v apt-get >/dev/null || {
-            echo 'Linux setup requires apt (Ubuntu/Debian).' >&2
-            exit 1
-        }
-        apt_command=(apt-get)
+        sudo_command=()
         if (( EUID != 0 )); then
             command -v sudo >/dev/null || {
                 echo 'Install sudo or run this script as root.' >&2
                 exit 1
             }
-            apt_command=(sudo apt-get)
+            sudo_command=(sudo)
         fi
-        "${apt_command[@]}" update
-        "${apt_command[@]}" install -y --no-upgrade \
-            build-essential git gcc-arm-none-eabi libnewlib-arm-none-eabi \
-            libstdc++-arm-none-eabi-newlib dfu-util curl ca-certificates \
-            libdigest-sha-perl python3
+        if command -v apt-get >/dev/null; then
+            "${sudo_command[@]}" apt-get update
+            "${sudo_command[@]}" apt-get install -y --no-upgrade \
+                build-essential git gcc-arm-none-eabi libnewlib-arm-none-eabi \
+                libstdc++-arm-none-eabi-newlib dfu-util curl ca-certificates \
+                libdigest-sha-perl python3 python3-venv screen
+        elif command -v pacman >/dev/null; then
+            # No -y: refreshing the package list without upgrading is a partial
+            # upgrade, which Arch doesn't support. Run pacman -Syu first if this
+            # can't find a package.
+            "${sudo_command[@]}" pacman -S --needed --noconfirm \
+                base-devel git arm-none-eabi-gcc arm-none-eabi-newlib dfu-util \
+                curl ca-certificates perl python screen
+            # Arch installs shasum outside the default PATH until the next login.
+            [[ -x /usr/bin/core_perl/shasum ]] && PATH="$PATH:/usr/bin/core_perl"
+        else
+            echo 'Linux setup requires apt (Ubuntu/Debian) or pacman (Arch).' >&2
+            exit 1
+        fi
+
+        # Let the logged-in user reach the Seed's DFU bootloader and USB serial
+        # port without root or extra groups.
+        rules=/etc/udev/rules.d/50-daisy-seed.rules
+        if [[ ! -f "$rules" ]]; then
+            printf '%s\n' \
+                'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", MODE="0664", TAG+="uaccess"' \
+                'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", MODE="0664", TAG+="uaccess"' |
+                "${sudo_command[@]}" tee "$rules" >/dev/null
+            "${sudo_command[@]}" udevadm control --reload-rules
+            "${sudo_command[@]}" udevadm trigger
+        fi
         ;;
     *)
-        echo 'Supported platforms: macOS (Homebrew) and Ubuntu/Debian (apt).' >&2
+        echo 'Supported platforms: macOS (Homebrew), Ubuntu/Debian (apt) and Arch (pacman).' >&2
         exit 1
         ;;
 esac
