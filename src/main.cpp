@@ -89,6 +89,8 @@ struct AppState {
     uint32_t last_report_ms = 0;
     bool led_on = false;
     uint32_t report_count = 0;
+    bool knobs_reported = false;
+    uint32_t reported_knob_percent[kKnobCount] = {};
 #ifdef A2_LITE_PROFILE
     uint32_t profile_blocks = 0;
     uint32_t input_mark = 0;
@@ -204,6 +206,31 @@ static void ApplyPendingCabinetCommand() {
     seed.PrintLine(">>> cabinet %s", enabled ? "on" : "off");
 }
 
+// Prints the knob readings at startup and whenever either has moved by 2%
+// or more since last printed. They stay off the status line, which is
+// already near libDaisy's 128-byte print limit.
+static void ReportKnobs(AppState &state) {
+    // Read both knobs as a percentage of full travel.
+    uint32_t percent[kKnobCount];
+    for (int knob = 0; knob < kKnobCount; ++knob)
+        percent[knob] = static_cast<uint32_t>(seed.adc.GetFloat(knob) * 100.0f + 0.5f);
+
+    // Stay quiet unless one has moved further than ADC noise would take it.
+    bool moved = !state.knobs_reported;
+    for (int knob = 0; knob < kKnobCount; ++knob) {
+        const uint32_t previous = state.reported_knob_percent[knob];
+        moved = moved || percent[knob] >= previous + 2 || previous >= percent[knob] + 2;
+    }
+    if (!moved)
+        return;
+
+    // Remember what was printed and print it.
+    state.knobs_reported = true;
+    for (int knob = 0; knob < kKnobCount; ++knob)
+        state.reported_knob_percent[knob] = percent[knob];
+    seed.PrintLine(">>> volume %lu%%  tone %lu%%", static_cast<unsigned long>(percent[kVolumeKnob]), static_cast<unsigned long>(percent[kToneKnob]));
+}
+
 static void ReportStatus(AppState &state) {
     // Report once per second.
     const uint32_t now_ms = daisy::System::GetNow();
@@ -229,12 +256,12 @@ static void ReportStatus(AppState &state) {
     const uint32_t peak_pct = max_us * 100 / kBlockBudgetUs;
     const int32_t headroom_us = static_cast<int32_t>(kBlockBudgetUs) - static_cast<int32_t>(max_us);
     const bool active = !bypass && state.model_ready;
-    const auto knob_percent = [](Knob knob) { return static_cast<unsigned long>(seed.adc.GetFloat(knob) * 100.0f + 0.5f); };
 
     // Print the status line.
     const char *mode = bypass ? "bypass" : (state.model_ready ? "active" : "failed");
     const char *cabinet = active ? (audio.CabinetEnabled() ? "on" : "off") : "-";
-    seed.PrintLine("[%-6s %-22s]  cab %-3s  vol %3lu%%  tone %3lu%%  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", cabinet, knob_percent(kVolumeKnob), knob_percent(kToneKnob), static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
+    seed.PrintLine("[%-6s %-22s]  cab %-3s  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", cabinet, static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
+    ReportKnobs(state);
 #ifdef A2_LITE_PROFILE
     state.profile_blocks += callbacks;
     if (state.report_count % 5 == 0)

@@ -77,16 +77,15 @@ The firmware prints one status line per second:
 
 ```
 --- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 C=cab B=DFU ---
-[active Fender Twin65          ]  cab on   vol  75%  tone 100%  avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
+[active Fender Twin65          ]  cab on   avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
 >>> bypass
-[bypass -                      ]  cab -    vol  75%  tone 100%  avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
+[bypass -                      ]  cab -    avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
 ```
 
 | Field | Meaning |
 | --- | --- |
 | `[mode amp]` | `active` with the running model, `bypass`, or `failed` if the model did not load (audio is bypassed). |
 | `cab` | Whether the cabinet EQ is on; `-` when no model is running. |
-| `vol`, `tone` | The raw volume and tone knob readings, as a percentage of full travel. |
 | `avg` | Mean audio-callback time over the last second, as a percentage of the block budget and in microseconds. |
 | `peak` | Longest single callback over the last second. |
 | `headroom` | Budget minus peak: how much slower the callback could get before an overrun. Negative means an overrun happened. |
@@ -94,7 +93,9 @@ The firmware prints one status line per second:
 | `overruns` | Callbacks that exceeded the budget in the last second. Lines with overruns are marked `<-- OVERRUN`. |
 
 The header repeats every 20 lines, and `>>>` lines record model switches,
-bypass, and cabinet toggles. Bypass skips the model and the cabinet (only the knobs act on the input), so the
+bypass, and cabinet toggles. A `>>> volume 75%  tone 100%` line gives the raw
+knob readings (percent of full travel) at startup and after either knob moves
+by 2% or more, checked once a second. Bypass skips the model and the cabinet (only the knobs act on the input), so the
 load drops to a few microseconds; leaving bypass reloads the selected model.
 All three models share one architecture and cost the same.
 
