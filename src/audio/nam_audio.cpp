@@ -43,9 +43,17 @@ void NamAudio::Process(const float *input_left, float *output_left, float *outpu
     if (processed && cabinet_enabled_)
         cabinet_.Process(output_.data(), frame_count);
 
+    // Copy to the left output to work in place, replacing NaN and infinity
+    // with silence so they can't stick in the tone filter's memory.
+    for (std::size_t i = 0; i < frame_count; ++i)
+        output_left[i] = std::isfinite(source[i]) ? source[i] : 0.0f;
+
+    // Apply the volume and tone knobs, in bypass too.
+    controls_.Process(output_left, frame_count);
+
     // Apply output gain and clamp, and copy the mono signal to both channels.
     for (std::size_t i = 0; i < frame_count; ++i) {
-        const float sample = ApplyOutputGainAndClamp(source[i]);
+        const float sample = ApplyOutputGainAndClamp(output_left[i]);
         output_left[i] = sample;
         output_right[i] = sample;
     }

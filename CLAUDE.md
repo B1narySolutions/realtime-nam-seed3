@@ -13,7 +13,7 @@ Run everything from the repository root.
 | `bash scripts/install.sh` (or `make install`) | Install the ARM toolchain and dfu-util, and fetch pinned libDaisy and NeuralAmpModelerCore into `libs/` |
 | `bash scripts/download_models.sh` (or `make download-models`) | Download the three `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
 | `make` | Build libDaisy (`-Os`) and the firmware (`-O3`), embedding all three models |
-| `make test` | Host tests with ASan/UBSan: upstream NAM comparison, processor, cabinet, audio path, converter |
+| `make test` | Host tests with ASan/UBSan: upstream NAM comparison, processor, cabinet, output controls, audio path, converter |
 | `make viz` | Render presentation figures (engine vs upstream accuracy, amp comparisons, the cabinet EQ) to `build/viz/`, creating `.venv/` from `viz/requirements.txt` |
 | `make viz-docs` | `make viz`, then copy the README's figures (all but the stats slide) to `docs/images/`. Rerun after changing the engine or `viz/figures.py` |
 | `make upload` / `make monitor` | Flash over DFU (the running firmware reboots itself into DFU on `B`) and open the serial monitor; `PORT=/dev/cu.usbmodem…` picks a port |
@@ -29,15 +29,17 @@ make -f tests/Makefile test-a2        # A2-Lite vs upstream NAM, per model
 python3 -B tests/test_convert_a2.py   # converter only
 ```
 
-Without the downloaded models, `make test` runs only `nam_processor_test` and `cab_filter_test` and says what it skipped.
+Without the downloaded models, `make test` runs only `nam_processor_test`, `cab_filter_test` and `output_controls_test` and says what it skipped.
 
 ## Architecture
 
 Signal path, top to bottom:
 
-- `src/main.cpp`: hardware init, the audio callback (times every block and counts overruns), a USB receive interrupt that only records a key into atomics, and a main loop that applies model switches, prints a status line once a second and handles the DFU reboot. Model switches stop audio, load, then restart it. Nothing allocates in the interrupt or the audio callback.
+- `src/main.cpp`: hardware init (including the ADC for the carrier board's volume and tone pots on `A0`/`A1`), the audio callback (passes on the knob readings, times every block and counts overruns), a USB receive interrupt that only records a key into atomics, and a main loop that applies model switches, prints a status line once a second and handles the DFU reboot. Model switches stop audio, load, then restart it. Nothing allocates in the interrupt or the audio callback.
 - `src/audio/nam_audio.*`: `NamAudio` takes the left input to both outputs, sanitizes NaN/inf, applies gain and clamp, and handles bypass (which skips the model entirely). `LoadAmpModel` frees the old model before building the next, because the delay lines take much of SRAM. A failed load leaves audio in bypass.
-- `src/audio/cab_filter.*`: `CabFilter`, a fixed six-biquad speaker EQ that `NamAudio` runs on the model's output (never in bypass), toggled with `C`. Its coefficients are designed at compile time with constexpr Taylor series so the firmware doesn't link libm's `sin`/`cos`/`pow` (about 13 KB of flash).
+- `src/audio/cab_filter.*`: `CabFilter`, a fixed six-biquad speaker EQ that `NamAudio` runs on the model's output (never in bypass), toggled with `C`. Its coefficients are designed at compile time with constexpr Taylor series (`constexpr_math.h`) so the firmware doesn't link libm's `sin`/`cos`/`pow` (about 13 KB of flash).
+- `src/audio/output_controls.*`: `OutputControls`, the volume and tone knobs, which `NamAudio` applies to its final output (in bypass too). Volume is a cubic audio taper; tone is two one-pole low-passes whose coefficient is interpolated from a compile-time table that ends in an exact pass-through. Knob moves glide with a 20 ms time constant.
+- `src/audio/constexpr_math.h`: the compile-time Taylor series both filters use for their designs.
 - `src/audio/nam_processor.*`: `NamProcessor` owns one `AmpModel`, validates the sample rate and block size, and commits a new model only after `Reset` succeeds.
 - `src/models/amp_model.h`: the `AmpModel` interface. `Reset` may allocate and throw; `Process` must never allocate.
 - `src/models/a2_lite.*`: the hand-written, fixed-shape A2-Lite WaveNet, the performance-critical code.

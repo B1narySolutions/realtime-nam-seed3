@@ -16,6 +16,9 @@ static std::atomic<bool> bootloader_requested{false};
 static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio counters must be lock-free");
 // Only changed while audio is stopped.
 static bool bypass = false;
+// ADC channels for the carrier board's pots: volume (RV2) on Daisy pin 22
+// (A0) and tone (RV3) on pin 23 (A1).
+enum Knob : uint8_t { kVolumeKnob, kToneKnob, kKnobCount };
 static uint32_t ticks_per_us = 1; // Set in InitHardware after clocks are configured.
 // Wall-clock time one audio block covers; the callback must finish within it.
 static constexpr uint32_t kBlockBudgetUs = static_cast<uint32_t>(NamAudio::kBlockSize * 1000000.0 / NamAudio::kSampleRate);
@@ -38,6 +41,9 @@ void AudioCallback(daisy::AudioHandle::InputBuffer input_channels, daisy::AudioH
     // 240 MHz), so subtracting two GetUs() values across the wrap yields
     // garbage. Tick subtraction is exact modulo 2^32.
     const uint32_t start_tick = daisy::System::GetTick();
+
+    // Pass on the latest knob readings, which the ADC's DMA keeps current.
+    audio.SetKnobs(seed.adc.GetFloat(kVolumeKnob), seed.adc.GetFloat(kToneKnob));
 
     // Left input in, same signal out on both channels.
     audio.Process(input_channels[0], output_channels[0], output_channels[1], frame_count, bypass);
@@ -142,6 +148,13 @@ static void InitHardware() {
     seed.SetAudioSampleRate(daisy::SaiHandle::Config::SampleRate::SAI_48KHZ);
     seed.SetAudioBlockSize(NamAudio::kBlockSize);
 
+    // Read the volume and tone pots continuously in the background.
+    daisy::AdcChannelConfig knobs[kKnobCount];
+    knobs[kVolumeKnob].InitSingle(daisy::seed::A0);
+    knobs[kToneKnob].InitSingle(daisy::seed::A1);
+    seed.adc.Init(knobs, kKnobCount);
+    seed.adc.Start();
+
     // Serial logging without waiting for a host to connect.
     seed.StartLog(false);
 #ifdef A2_LITE_PROFILE
@@ -216,11 +229,12 @@ static void ReportStatus(AppState &state) {
     const uint32_t peak_pct = max_us * 100 / kBlockBudgetUs;
     const int32_t headroom_us = static_cast<int32_t>(kBlockBudgetUs) - static_cast<int32_t>(max_us);
     const bool active = !bypass && state.model_ready;
+    const auto knob_percent = [](Knob knob) { return static_cast<unsigned long>(seed.adc.GetFloat(knob) * 100.0f + 0.5f); };
 
     // Print the status line.
     const char *mode = bypass ? "bypass" : (state.model_ready ? "active" : "failed");
     const char *cabinet = active ? (audio.CabinetEnabled() ? "on" : "off") : "-";
-    seed.PrintLine("[%-6s %-22s]  cab %-3s  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", cabinet, static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
+    seed.PrintLine("[%-6s %-22s]  cab %-3s  vol %3lu%%  tone %3lu%%  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", cabinet, knob_percent(kVolumeKnob), knob_percent(kToneKnob), static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
 #ifdef A2_LITE_PROFILE
     state.profile_blocks += callbacks;
     if (state.report_count % 5 == 0)
@@ -231,9 +245,11 @@ static void ReportStatus(AppState &state) {
 int main() {
     InitHardware();
 
-    // Load the default amp and start audio.
+    // Load the default amp, start from where the knobs are, and start audio.
     AppState state;
     state.model_ready = audio.LoadAmpModel(state.selected_amp);
+    audio.SetKnobs(seed.adc.GetFloat(kVolumeKnob), seed.adc.GetFloat(kToneKnob));
+    audio.ResetKnobs();
     seed.StartAudio(AudioCallback);
     state.last_report_ms = daisy::System::GetNow();
 

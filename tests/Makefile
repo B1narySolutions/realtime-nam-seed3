@@ -4,6 +4,7 @@ NAM_DIR = libs/NeuralAmpModelerCore
 include make/models.mk
 TEST_BIN = build/tests/nam_processor_test
 CAB_TEST_BIN = build/tests/cab_filter_test
+CONTROLS_TEST_BIN = build/tests/output_controls_test
 SOURCES = tests/nam_processor_test.cpp src/audio/nam_processor.cpp
 FLAGS = -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
 INCLUDES = -Isrc -Itests
@@ -15,15 +16,17 @@ MISSING_MODELS = $(filter-out $(wildcard $(A2_MODELS)),$(A2_MODELS))
 
 .PHONY: test
 ifeq ($(MISSING_MODELS),)
-test: $(TEST_BIN) $(CAB_TEST_BIN) build/tests/nam_audio_test test-a2
+test: $(TEST_BIN) $(CAB_TEST_BIN) $(CONTROLS_TEST_BIN) build/tests/nam_audio_test test-a2
 	./$(TEST_BIN)
 	./$(CAB_TEST_BIN)
+	./$(CONTROLS_TEST_BIN)
 	./build/tests/nam_audio_test $(A2_REFERENCES)
 	python3 -B tests/test_convert_a2.py
 else
-test: $(TEST_BIN) $(CAB_TEST_BIN)
+test: $(TEST_BIN) $(CAB_TEST_BIN) $(CONTROLS_TEST_BIN)
 	./$(TEST_BIN)
 	./$(CAB_TEST_BIN)
+	./$(CONTROLS_TEST_BIN)
 	@echo 'Skipped A2-Lite and converter tests; missing $(MISSING_MODELS).' >&2
 	@echo 'Run make download-models to enable them.' >&2
 endif
@@ -32,14 +35,18 @@ $(TEST_BIN): $(SOURCES) src/audio/nam_processor.h src/models/amp_model.h tests/M
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) -Ibuild/generated $(INCLUDES) $(SOURCES) -o $@
 
-$(CAB_TEST_BIN): tests/cab_filter_test.cpp tests/audio_stimulus.h tests/allocation_guard.h src/audio/cab_filter.cpp src/audio/cab_filter.h tests/Makefile
+$(CAB_TEST_BIN): tests/cab_filter_test.cpp tests/audio_stimulus.h tests/allocation_guard.h src/audio/cab_filter.cpp src/audio/cab_filter.h src/audio/constexpr_math.h tests/Makefile
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) $(INCLUDES) tests/cab_filter_test.cpp src/audio/cab_filter.cpp -o $@
 
+$(CONTROLS_TEST_BIN): tests/output_controls_test.cpp tests/audio_stimulus.h tests/allocation_guard.h src/audio/output_controls.cpp src/audio/output_controls.h src/audio/constexpr_math.h tests/Makefile
+	@mkdir -p $(@D)
+	$(CXX) $(FLAGS) $(INCLUDES) tests/output_controls_test.cpp src/audio/output_controls.cpp -o $@
+
 build/tests/nam_audio_test: tests/nam_audio_test.cpp tests/audio_stimulus.h tests/allocation_guard.h \
-  src/audio/nam_audio.cpp src/audio/nam_audio.h src/audio/cab_filter.cpp src/audio/cab_filter.h src/models/a2_lite.cpp src/models/a2_lite.h src/models/amp_model.h \
+  src/audio/nam_audio.cpp src/audio/nam_audio.h src/audio/cab_filter.cpp src/audio/cab_filter.h src/audio/constexpr_math.h src/audio/output_controls.cpp src/audio/output_controls.h src/models/a2_lite.cpp src/models/a2_lite.h src/models/amp_model.h \
   src/models/amp_models.cpp src/models/amp_models.h src/audio/nam_processor.cpp src/audio/nam_processor.h \
   $(A2_HEADER) tests/Makefile
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) -Ibuild/generated $(INCLUDES) tests/nam_audio_test.cpp \
-	  src/audio/nam_audio.cpp src/audio/cab_filter.cpp src/models/amp_models.cpp src/models/a2_lite.cpp src/audio/nam_processor.cpp -o $@
+	  src/audio/nam_audio.cpp src/audio/cab_filter.cpp src/audio/output_controls.cpp src/models/amp_models.cpp src/models/a2_lite.cpp src/audio/nam_processor.cpp -o $@

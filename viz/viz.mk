@@ -18,7 +18,7 @@ build/viz/ref/%.o: $(NAM_DIR)/NAM/%.cpp viz/viz.mk
 	@mkdir -p $(@D)
 	$(CXX) $(VIZ_FLAGS) $(VIZ_INCLUDES) -MMD -MP -c $< -o $@
 
-$(VIZ_RENDER): viz/render.cpp $(VIZ_ENGINE_SOURCES) src/audio/cab_filter.h src/models/a2_lite.h src/models/amp_model.h src/models/amp_models.h $(A2_HEADER) $(VIZ_REF_OBJECTS) viz/viz.mk
+$(VIZ_RENDER): viz/render.cpp $(VIZ_ENGINE_SOURCES) src/audio/cab_filter.h src/audio/constexpr_math.h src/models/a2_lite.h src/models/amp_model.h src/models/amp_models.h $(A2_HEADER) $(VIZ_REF_OBJECTS) viz/viz.mk
 	@mkdir -p $(@D)
 	$(CXX) $(VIZ_FLAGS) $(VIZ_INCLUDES) viz/render.cpp $(VIZ_ENGINE_SOURCES) $(VIZ_REF_OBJECTS) -o $@
 

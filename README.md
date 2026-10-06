@@ -49,6 +49,18 @@ to switch models or bypass; no Enter is needed:
 Audio runs at 48 kHz, with the left input processed and sent to both outputs.
 Switching models or toggling bypass or the cabinet briefly interrupts playback.
 
+On the Seed3 carrier board, the volume and tone knobs act on the output, in
+bypass too:
+
+| Knob | Daisy pin | Effect |
+| --- | --- | --- |
+| Volume (RV2) | 22 (ADC 0, `A0`) | Output level on an audio taper: half way is about -18 dB, fully down is silent. |
+| Tone (RV3) | 23 (ADC 1, `A1`) | 12 dB/octave low-pass whose corner sweeps from 400 Hz up to fully open, where the signal passes unchanged. |
+
+Both are linear 10k pots wired as dividers from 3V3_A, read continuously by
+the ADC. Changes glide with a 20 ms time constant, so turning a knob doesn't click. The
+input level knob (RV1) is analog and never reaches the firmware.
+
 The models capture the amps alone, which sounds harsh without a speaker. A
 fixed cabinet EQ after the model stands in for one: it cuts below 75 Hz,
 adds a speaker resonance at 110 Hz and presence at 2.5 kHz, scoops 400 Hz,
@@ -65,15 +77,16 @@ The firmware prints one status line per second:
 
 ```
 --- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 C=cab B=DFU ---
-[active Fender Twin65          ]  cab on   avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
+[active Fender Twin65          ]  cab on   vol  75%  tone 100%  avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
 >>> bypass
-[bypass -                      ]  cab -    avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
+[bypass -                      ]  cab -    vol  75%  tone 100%  avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
 ```
 
 | Field | Meaning |
 | --- | --- |
 | `[mode amp]` | `active` with the running model, `bypass`, or `failed` if the model did not load (audio is bypassed). |
 | `cab` | Whether the cabinet EQ is on; `-` when no model is running. |
+| `vol`, `tone` | The raw volume and tone knob readings, as a percentage of full travel. |
 | `avg` | Mean audio-callback time over the last second, as a percentage of the block budget and in microseconds. |
 | `peak` | Longest single callback over the last second. |
 | `headroom` | Budget minus peak: how much slower the callback could get before an overrun. Negative means an overrun happened. |
@@ -81,7 +94,7 @@ The firmware prints one status line per second:
 | `overruns` | Callbacks that exceeded the budget in the last second. Lines with overruns are marked `<-- OVERRUN`. |
 
 The header repeats every 20 lines, and `>>>` lines record model switches,
-bypass, and cabinet toggles. Bypass skips the model and passes the input straight through, so the
+bypass, and cabinet toggles. Bypass skips the model and the cabinet (only the knobs act on the input), so the
 load drops to a few microseconds; leaving bypass reloads the selected model.
 All three models share one architecture and cost the same.
 

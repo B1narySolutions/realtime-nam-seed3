@@ -98,5 +98,24 @@ int main(int argc, char **argv) {
     input.fill(0.5f);
     audio.Process(input.data(), left.data(), right.data(), 48, false);
     assert(left[0] == 0.4f && right[47] == 0.4f);
-    std::cout << "A2 audio: switching, bypass, cabinet, bounds, and no processing allocations passed\n";
+    // The knobs apply in bypass too: fully down is silence, half way -18 dB.
+    audio.SetKnobs(0.0f, 1.0f);
+    audio.ResetKnobs();
+    audio.Process(input.data(), left.data(), right.data(), 48, true);
+    assert(left[0] == 0.0f && right[47] == 0.0f);
+    audio.SetKnobs(0.5f, 1.0f);
+    audio.ResetKnobs();
+    audio.Process(input.data(), left.data(), right.data(), 48, true);
+    assert(std::fabs(left[47] - 0.4f * 0.125f) < 1e-6f && left[47] == right[47]);
+    // NaN and infinity never reach the tone filter, so they can't stick in it.
+    audio.SetKnobs(1.0f, 0.5f);
+    audio.ResetKnobs();
+    input[0] = std::numeric_limits<float>::quiet_NaN();
+    input[1] = std::numeric_limits<float>::infinity();
+    audio.Process(input.data(), left.data(), right.data(), 48, true);
+    input.fill(0.5f);
+    audio.Process(input.data(), left.data(), right.data(), 48, true);
+    for (int i = 0; i < 48; ++i)
+        assert(std::isfinite(left[i]) && left[i] > 0.0f);
+    std::cout << "A2 audio: switching, bypass, cabinet, knobs, bounds, and no processing allocations passed\n";
 }

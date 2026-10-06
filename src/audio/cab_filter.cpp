@@ -1,4 +1,5 @@
 #include "audio/cab_filter.h"
+#include "audio/constexpr_math.h"
 #include <numbers>
 
 namespace {
@@ -26,35 +27,11 @@ constexpr StageSpec kStageSpecs[] = {
 // clang-format on
 static_assert(sizeof(kStageSpecs) / sizeof(kStageSpecs[0]) == CabFilter::kStages);
 
-// Taylor series, so the design runs at compile time and the firmware links
-// none of libm's sin, cos or pow (about 13 KB of its 128 KB flash). Twelve
-// terms are exact to double precision for the angles and gains above.
-constexpr double Sin(double x) {
-    double term = x, sum = x;
-    for (int n = 1; n < 12; ++n) {
-        term *= -x * x / ((2 * n) * (2 * n + 1));
-        sum += term;
-    }
-    return sum;
-}
-
-constexpr double Cos(double x) {
-    double term = 1.0, sum = 1.0;
-    for (int n = 1; n < 12; ++n) {
-        term *= -x * x / ((2 * n - 1) * (2 * n));
-        sum += term;
-    }
-    return sum;
-}
-
-constexpr double Exp(double x) {
-    double term = 1.0, sum = 1.0;
-    for (int n = 1; n < 12; ++n) {
-        term *= x / n;
-        sum += term;
-    }
-    return sum;
-}
+// The design uses compile-time Taylor series instead of libm. Twelve terms
+// are exact to double precision for the angles and gains above.
+using constexpr_math::Cos;
+using constexpr_math::Exp;
+using constexpr_math::Sin;
 
 constexpr CabFilter::Coefficients Design(const StageSpec &spec) {
     // Bilinear-transform terms from the Audio EQ Cookbook (R. Bristow-Johnson).
