@@ -3,6 +3,12 @@
 Neural amp modeling on the Daisy Seed3 using libDaisy, with three A2-Lite models:
 Fender '65 Twin Reverb, Vox AC30 Chimey, and Marshall JCM800 (gain 5).
 
+This firmware is one part of a capstone project, a portable touchscreen practice
+guitar amp. For the whole project (requirements, hardware, test plans and the
+decision log), see
+[capstone-documentation](https://github.com/B1narySolutions/capstone-documentation).
+Check there before making a decision that affects more than the firmware.
+
 ## Setup
 
 On macOS, install [Homebrew](https://brew.sh) and Apple's Command Line Tools
