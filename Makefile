@@ -44,13 +44,13 @@ model:
 	$(MAKE) -f make/firmware.mk build/generated/embedded_a2_data.h
 
 compiledb: model
-	@command -v compiledb >/dev/null || { echo 'Missing compiledb; install it with brew install compiledb.'; exit 1; }
+	@command -v compiledb >/dev/null || { echo 'Missing compiledb; install it with brew install compiledb or pip install compiledb.'; exit 1; }
 	@command -v arm-none-eabi-g++ >/dev/null || { echo 'Missing ARM compiler; run make install.'; exit 1; }
 	@test -f libs/libDaisy/core/Makefile || { echo 'Run make install first.'; exit 1; }
 	compiledb -n -f make -B -f make/firmware.mk compile-objects GCC_PATH="$$(dirname "$$(command -v arm-none-eabi-g++)")"
 
 format:
-	@command -v clang-format >/dev/null || { echo 'Missing clang-format; install it with brew install clang-format.'; exit 1; }
+	@command -v clang-format >/dev/null || { echo 'Missing clang-format; install it with brew install clang-format or your package manager.'; exit 1; }
 	find src tests -type f \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -exec clang-format -i --style=file {} +
 
 clean:
@@ -58,7 +58,7 @@ clean:
 	@if test -f libs/libDaisy/Makefile; then $(MAKE) -C libs/libDaisy clean; fi
 
 help:
-	@echo 'make install  Install tools with Homebrew or apt and fetch pinned dependencies.'
+	@echo 'make install  Install tools with Homebrew, apt or pacman and fetch pinned dependencies.'
 	@echo 'make download-models Download the three amp models to models/local/.'
 	@echo 'make build    Build libDaisy and three-amp A2-Lite firmware.'
 	@echo 'make model    Convert the downloaded A2-Lite models to embedded float data.'
@@ -66,7 +66,7 @@ help:
 	@echo 'make viz      Render presentation figures of the amp models to build/viz/.'
 	@echo 'make viz-docs Render the figures and copy the README's to docs/images/.'
 	@echo 'make upload   Build and flash via USB; the running firmware enters DFU itself (else BOOT + RESET).'
-	@echo 'make monitor  Open USB serial in screen (optional PORT=/dev/cu.usbmodem...).'
+	@echo 'make monitor  Open USB serial in screen (optional PORT=/dev/cu.usbmodem... or /dev/ttyACM...).'
 	@echo 'make format   Format C/C++ files under src/ using .clang-format.'
 	@echo 'make compiledb Generate compile_commands.json for clangd without building.'
 	@echo 'make clean    Remove firmware and libDaisy build outputs.'

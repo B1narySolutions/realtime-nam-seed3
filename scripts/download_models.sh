@@ -5,6 +5,8 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+# Arch keeps shasum in /usr/bin/core_perl, which a fresh login adds to PATH.
+[[ -x /usr/bin/core_perl/shasum ]] && PATH="$PATH:/usr/bin/core_perl"
 for tool in curl shasum python3; do
     command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done

@@ -3,11 +3,18 @@
 Neural amp modeling on the Daisy Seed3 using libDaisy, with three A2-Lite models:
 Fender '65 Twin Reverb, Vox AC30 Chimey, and Marshall JCM800 (gain 5).
 
+This firmware is one part of a capstone project, a portable touchscreen practice
+guitar amp. For the whole project (requirements, hardware, test plans and the
+decision log), see
+[capstone-documentation](https://github.com/B1narySolutions/capstone-documentation).
+Check there before making a decision that affects more than the firmware.
+
 ## Setup
 
 On macOS, install [Homebrew](https://brew.sh) and Apple's Command Line Tools
-(`xcode-select --install`). On Ubuntu, the installer uses `apt-get` and requests
-`sudo` access when needed. Run from the repository root:
+(`xcode-select --install`). On Ubuntu the installer uses `apt-get`, and on Arch
+it uses `pacman`; either way it requests `sudo` access when needed. Run from
+the repository root:
 
 ```sh
 bash scripts/install.sh
@@ -19,8 +26,9 @@ make
 download script. It installs the ARM compiler and DFU
 uploader, then fetches pinned versions of libDaisy and NAM Core. The download script saves the three
 Tone3000 models to Git-ignored `models/local/`. The build embeds their weights
-in the firmware. On Ubuntu, the installer also installs the build and download
-prerequisites, including the ARM C/C++ libraries and Python 3.
+in the firmware. On Linux, the installer also installs the build and download
+prerequisites, including the ARM C/C++ libraries, Python 3 and `screen`, and adds
+a udev rule so `make upload` and `make monitor` can reach the Seed without root.
 
 ## Upload and play
 
@@ -168,7 +176,8 @@ The same low-pass rounds the edges of a clipped waveform.
 | `make compiledb` | Generate the clangd compilation database. |
 | `make help` | List commands. |
 
-Formatting and clangd setup require `brew install clang-format compiledb`.
+Formatting and clangd setup require `clang-format` and `compiledb`
+(`brew install clang-format compiledb` on macOS).
 Host tests require a C++20 compiler.
 
 See [docs/performance.md](docs/performance.md) for measured speedups, where

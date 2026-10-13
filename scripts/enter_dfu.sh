@@ -11,7 +11,7 @@ in_dfu && exit 0
 port=${1:-}
 if [[ -z "$port" ]]; then
     shopt -s nullglob
-    ports=(/dev/cu.usbmodem*)
+    ports=(/dev/cu.usbmodem* /dev/ttyACM*)
     [[ ${#ports[@]} -eq 1 ]] && port=${ports[0]}
 fi
 

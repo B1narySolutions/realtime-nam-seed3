@@ -9,7 +9,7 @@ command -v screen >/dev/null || {
 port=${1:-}
 if [[ -z "$port" ]]; then
     shopt -s nullglob
-    ports=(/dev/cu.usbmodem*)
+    ports=(/dev/cu.usbmodem* /dev/ttyACM*)
     case ${#ports[@]} in
         0)
             echo 'No USB serial port found. Connect the Seed3 and reset into the application (not DFU mode).' >&2
@@ -17,7 +17,7 @@ if [[ -z "$port" ]]; then
             ;;
         1) port=${ports[0]} ;;
         *)
-            echo 'Multiple USB serial ports found. Choose one with make monitor PORT=/dev/cu.usbmodem...' >&2
+            echo 'Multiple USB serial ports found. Choose one with make monitor PORT=/dev/cu.usbmodem... (or /dev/ttyACM... on Linux)' >&2
             printf '  %s\n' "${ports[@]}" >&2
             exit 1
             ;;
