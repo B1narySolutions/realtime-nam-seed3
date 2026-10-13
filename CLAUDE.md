@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Neural amp modeling firmware for the Daisy Seed (STM32H7, Cortex-M7 at 480 MHz) using libDaisy. It runs three A2-Lite NAM models (Fender Twin65, Vox AC30, Marshall JCM800) at 48 kHz with 48-sample blocks, giving a hard budget of 1000 us per audio callback.
 
+## Project context
+
+This firmware is one part of a larger capstone project: a portable touchscreen practice guitar amp built around a custom carrier board ([seed3-carrier-board](https://github.com/B1narySolutions/seed3-carrier-board)). Whole-project documentation lives in [capstone-documentation](https://github.com/B1narySolutions/capstone-documentation): requirements, hardware facts and measurements, test plans, and the decision log. Read it before a decision that needs full project context, such as pin assignments, audio I/O routing, power, UI or features the spec requires. Record new project-wide decisions there, not here.
+
 ## Commands
 
 Run everything from the repository root.
