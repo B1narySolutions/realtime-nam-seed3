@@ -126,7 +126,8 @@ def extract(container, path):
 def load_manifest(path=MANIFEST):
     amps = json.loads(path.read_text())
     for amp in amps:
-        if not (amp["amp_id"].isidentifier() and amp["file"].endswith(".nam")):
+        if not (amp["amp_id"].isidentifier() and amp["file"].endswith(".nam")
+                and isinstance(amp["includes_cabinet"], bool)):
             raise ValueError(f"{path}: bad entry {amp}")
     return amps
 
@@ -156,10 +157,12 @@ def header(amps, models_dir):
                   for i in range(0, len(weights), 4)]
         lines += ["};"]
     lines += ["", "struct Model {", "    AmpId id;", "    const char *name;",
-              "    const float *weights;", "    std::size_t weight_count;", "};", "",
+              "    const float *weights;", "    std::size_t weight_count;",
+              "    // The capture already has a mic'd speaker, so the cabinet EQ is skipped.",
+              "    bool includes_cabinet;", "};", "",
               "// In AmpId order.", "inline constexpr Model kModels[] = {"]
     lines += [f"    {{AmpId::{amp['amp_id']}, {json.dumps(amp['name'])}, k{amp['amp_id']}, "
-              f"std::size(k{amp['amp_id']})}}," for amp in amps]
+              f"std::size(k{amp['amp_id']}), {str(amp['includes_cabinet']).lower()}}}," for amp in amps]
     lines += ["};", "} // namespace embedded_a2", ""]
     return "\n".join(lines)
 

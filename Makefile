@@ -59,8 +59,8 @@ clean:
 
 help:
 	@echo 'make install  Install tools with Homebrew, apt or pacman and fetch pinned dependencies.'
-	@echo 'make download-models Download the three amp models to models/local/.'
-	@echo 'make build    Build libDaisy and three-amp A2-Lite firmware.'
+	@echo 'make download-models Download the four amp models to models/local/.'
+	@echo 'make build    Build libDaisy and four-amp A2-Lite firmware.'
 	@echo 'make model    Convert the downloaded A2-Lite models to embedded float data.'
 	@echo 'make test     Run upstream A2 comparisons and sanitized host audio tests.'
 	@echo 'make viz      Render presentation figures of the amp models to build/viz/.'

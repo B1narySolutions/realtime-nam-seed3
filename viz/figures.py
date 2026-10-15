@@ -1,4 +1,4 @@
-"""Presentation figures for the three amp models, written to build/viz/.
+"""Presentation figures for the amp models, written to build/viz/.
 
 Run with make viz, which builds build/viz/render and the .venv first. Every
 signal is rendered through the firmware's A2-Lite engine on the host; the
@@ -28,9 +28,9 @@ FS = 48000
 REAMP = ROOT / "models" / "local" / "reamp_signal.wav"
 
 # Dark slide theme. Amp colors are the reference categorical palette's dark
-# steps, slots 1-3 (validated all-pairs on SURFACE), one per amp in AmpId
+# steps, slots 1-4 (validated all-pairs on SURFACE), one per amp in AmpId
 # order; the rest are its dark chart tokens.
-AMP_COLORS = ["#3987e5", "#d95926", "#199e70"]
+AMP_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500"]
 SURFACE = "#1a1a19"
 CARD = "#232322"
 TEXT = "#ffffff"
@@ -86,7 +86,7 @@ plt.rcParams.update({
 def load_amps():
     """Amp names and .nam paths from models/amps.json, in AmpId order."""
     manifest = json.loads((ROOT / "models" / "amps.json").read_text())
-    return [{"id": index + 1, "name": amp["name"], "path": ROOT / "models" / "local" / amp["file"], "color": AMP_COLORS[index]} for index, amp in enumerate(manifest)]
+    return [{"id": index + 1, "name": amp["name"], "path": ROOT / "models" / "local" / amp["file"], "color": AMP_COLORS[index], "includes_cabinet": amp["includes_cabinet"]} for index, amp in enumerate(manifest)]
 
 
 def render(kind, model, signal):
@@ -269,7 +269,7 @@ def accuracy_figure(amps, outputs, description, zoom_at):
         plt.Line2D([], [], color=TEXT_SECONDARY, linewidth=2, label="A2-Lite engine"),
         plt.Line2D([], [], color=TEXT_MUTED, linewidth=2, label="Difference"),
     ])
-    axes = figure.subplots(2, 3, gridspec_kw={"height_ratios": [1, 1.2], "hspace": 0.42, "wspace": 0.16})
+    axes = figure.subplots(2, len(amps), gridspec_kw={"height_ratios": [1, 1.2], "hspace": 0.42, "wspace": 0.16})
     figure.subplots_adjust(**CONTENT)
 
     for column, (amp, (engine, upstream)) in enumerate(zip(amps, outputs)):
@@ -398,7 +398,7 @@ def stats_figure(amps, outputs, description):
     # Tiles: value, then a short label and its basis.
     tiles = [
         (f"{first_engine_us / callback_us:.1f}×", "speedup over first engine", f"{first_engine_us:,} → {callback_us} µs, incl. 400 → 480 MHz"),
-        (minus(f"{worst_db:.0f} dB"), "difference from NAM Core", "worst of three amps"),
+        (minus(f"{worst_db:.0f} dB"), "difference from NAM Core", "worst of all amps"),
         (f"{receptive_field / FS * 1000:.0f} ms", "receptive field", f"{receptive_field:,} samples, {len(kernels)} layers"),
         (f"{macs * FS / 1e6:.0f} M", "multiply-adds per second", f"{macs:,} per sample"),
         (f"{weights:,}", "weights per model", f"{weights * 4 / 1000:.1f} KB as float32"),
@@ -423,7 +423,7 @@ def label_line_end(axis, x, y, text, offset=0):
 
 
 def frequency_response_figure(amps):
-    figure = slide("Small-signal frequency response", "−50 dBFS log sweep, 1/6-octave smoothing, normalized at 1 kHz. Amp only, no cabinet.", legend=amp_legend(amps))
+    figure = slide("Small-signal frequency response", "−50 dBFS log sweep, 1/6-octave smoothing, normalized at 1 kHz. Cabinet EQ off; the Princeton capture includes its mic'd speaker.", legend=amp_legend(amps))
     axis = figure.subplots()
     figure.subplots_adjust(**{**CONTENT, "right": 0.84})
 
@@ -451,7 +451,7 @@ def drive_figure(amps):
 
     # The Twin and AC30 end within a dB of each other, so their end labels
     # sit above and below.
-    label_offsets = [-2, 14, 0]
+    label_offsets = [-2, 14, 0, 0]
     for amp, offset in zip(amps, label_offsets):
         out = []
         for level in levels:
@@ -705,10 +705,12 @@ def main():
     drive_figure(amps)
     waveform_figure(amps)
     harmonics_figure(amps)
+    # The firmware skips the cabinet EQ for captures that include their own.
+    cabinet_amps = [amp for amp in amps if not amp["includes_cabinet"]]
     cabinet_response_figure()
-    cabinet_amp_response_figure(amps)
-    cabinet_spectrum_figure(amps)
-    cabinet_waveform_figure(amps)
+    cabinet_amp_response_figure(cabinet_amps)
+    cabinet_spectrum_figure(cabinet_amps)
+    cabinet_waveform_figure(cabinet_amps)
 
 
 if __name__ == "__main__":

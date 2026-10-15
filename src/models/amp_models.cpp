@@ -32,6 +32,11 @@ const char *AmpName(AmpId id) {
     return model ? model->name : "invalid";
 }
 
+bool AmpIncludesCabinet(AmpId id) {
+    const auto *model = FindModel(id);
+    return model && model->includes_cabinet;
+}
+
 std::unique_ptr<AmpModel> CreateAmpModel(AmpId id) {
     const auto *model = FindModel(id);
     return model ? std::make_unique<A2Lite>(model->weights) : nullptr;

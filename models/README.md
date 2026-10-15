@@ -1,9 +1,10 @@
 # Amp models
 
 `amps.json` lists the amps in `AmpId` order: each amp's name, model file,
-download URL and SHA-256. It is the only place that list is written down; the
-download script, the converter, Make and the tests all read it, and the
-firmware build fails if it disagrees with `AmpId` in `src/models/amp_models.h`.
+download URL and SHA-256, and `includes_cabinet`, true when the capture
+already has a mic'd speaker so the firmware skips its cabinet EQ. It is the
+only place that list is written down; the download script, the converter, Make
+and the tests all read it, and the firmware build fails if it disagrees with `AmpId` in `src/models/amp_models.h`.
 To add an amp, add an entry here and a matching `AmpId` value.
 
 `local/` holds the downloaded A2-Lite models used by the firmware.

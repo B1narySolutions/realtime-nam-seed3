@@ -1,7 +1,8 @@
 # NAM Seed3
 
-Neural amp modeling on the Daisy Seed3 using libDaisy, with three A2-Lite models:
-Fender '65 Twin Reverb, Vox AC30 Chimey, and Marshall JCM800 (gain 5).
+Neural amp modeling on the Daisy Seed3 using libDaisy, with four A2-Lite models:
+Fender '65 Twin Reverb, Vox AC30 Chimey, Marshall JCM800 (gain 5), and
+Fender '65 Princeton Reverb (edge of breakup, SM57).
 
 This firmware is one part of a capstone project, a portable touchscreen practice
 guitar amp. For the whole project (requirements, hardware, test plans and the
@@ -24,7 +25,7 @@ make
 
 `make install` runs the same installer, and `make download-models` runs the
 download script. It installs the ARM compiler and DFU
-uploader, then fetches pinned versions of libDaisy and NAM Core. The download script saves the three
+uploader, then fetches pinned versions of libDaisy and NAM Core. The download script saves the four
 Tone3000 models to Git-ignored `models/local/`. The build embeds their weights
 in the firmware. On Linux, the installer also installs the build and download
 prerequisites, including the ARM C/C++ libraries, Python 3 and `screen`, and adds
@@ -51,7 +52,8 @@ to switch models or bypass; no Enter is needed:
 | `1` | Fender '65 Twin Reverb |
 | `2` | Vox AC30 Chimey |
 | `3` | Marshall JCM800 (gain 5) |
-| `C` | Cabinet EQ on or off (starts on) |
+| `4` | Fender '65 Princeton Reverb (edge of breakup) |
+| `C` | Cabinet EQ on or off (starts on; the Princeton always skips it) |
 | `B` | Reboot into DFU mode for flashing |
 
 Audio runs at 48 kHz, with the left input processed and sent to both outputs.
@@ -69,12 +71,14 @@ Both are linear 10k pots wired as dividers from 3V3_A, read continuously by
 the ADC. Changes glide with a 20 ms time constant, so turning a knob doesn't click. The
 input level knob (RV1) is analog and never reaches the firmware.
 
-The models capture the amps alone, which sounds harsh without a speaker. A
-fixed cabinet EQ after the model stands in for one: it cuts below 75 Hz,
-adds a speaker resonance at 110 Hz and presence at 2.5 kHz, scoops 400 Hz,
-and rolls off at 24 dB/octave above 5 kHz. Press `C` to compare with the
-raw amp. Bypass skips the cabinet too. It is an EQ, not a measured cabinet
-impulse response, and hardware gain calibration is not implemented.
+The Twin, AC30 and JCM800 models capture the amps alone, which sounds harsh
+without a speaker. A fixed cabinet EQ after the model stands in for one: it
+cuts below 75 Hz, adds a speaker resonance at 110 Hz and presence at 2.5 kHz,
+scoops 400 Hz, and rolls off at 24 dB/octave above 5 kHz. Press `C` to
+compare with the raw amp. Bypass skips the cabinet too. The Princeton capture
+already includes its mic'd 10-inch speaker, so it always skips the cabinet EQ;
+`C` still sets the choice for the other amps. It is an EQ, not a measured
+cabinet impulse response, and hardware gain calibration is not implemented.
 
 If multiple serial ports are connected, use `make monitor PORT=/dev/cu.usbmodem…`.
 Exit the monitor with **Ctrl-A**, then **K**, then **Y**.
@@ -84,7 +88,7 @@ Exit the monitor with **Ctrl-A**, then **K**, then **Y**.
 The firmware prints one status line per second:
 
 ```
---- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 C=cab B=DFU ---
+--- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 4=Princeton C=cab B=DFU ---
 [active Fender Twin65          ]  cab on   avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
 >>> bypass
 [bypass -                      ]  cab -    avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
@@ -93,7 +97,7 @@ The firmware prints one status line per second:
 | Field | Meaning |
 | --- | --- |
 | `[mode amp]` | `active` with the running model, `bypass`, or `failed` if the model did not load (audio is bypassed). |
-| `cab` | Whether the cabinet EQ is on; `-` when no model is running. |
+| `cab` | Whether the cabinet EQ is on; `amp` when the capture includes its own cabinet, so the EQ is skipped; `-` when no model is running. |
 | `avg` | Mean audio-callback time over the last second, as a percentage of the block budget and in microseconds. |
 | `peak` | Longest single callback over the last second. |
 | `headroom` | Budget minus peak: how much slower the callback could get before an overrun. Negative means an overrun happened. |
@@ -105,7 +109,7 @@ bypass, and cabinet toggles. A `>>> volume 75%  tone 100%` line gives the raw
 knob readings (percent of full travel) at startup and after either knob moves
 by 2% or more, checked once a second. Bypass skips the model and the cabinet (only the knobs act on the input), so the
 load drops to a few microseconds; leaving bypass reloads the selected model.
-All three models share one architecture and cost the same.
+All four models share one architecture and cost the same.
 
 ## Results
 
@@ -116,7 +120,7 @@ is at `models/local/reamp_signal.wav`, and a synthetic guitar DI otherwise.
 ### Accuracy
 
 The firmware engine matches upstream NAM Core to within float rounding: the
-difference is 121–123 dB below the output for every amp.
+difference is 121–124 dB below the output for every amp.
 
 ![Firmware engine vs. NAM Core: overlaid output and spectra](docs/images/accuracy.png)
 
@@ -124,13 +128,14 @@ The difference stays at that level across the whole 190 s reamp signal.
 
 ![Output and difference level over time for each amp](docs/images/accuracy_over_time.png)
 
-### The three amps
+### The four amps
 
-Small-signal frequency response of each capture, without the cabinet EQ.
+Small-signal frequency response of each capture, without the cabinet EQ. The
+Princeton's steep roll-off above 6 kHz is its mic'd speaker.
 
-![Small-signal frequency response of the three amps](docs/images/amp_frequency_response.png)
+![Small-signal frequency response of the four amps](docs/images/amp_frequency_response.png)
 
-Output level against input level. All three saturate well before full scale;
+Output level against input level. All four saturate well before full scale;
 the Twin capture is cranked and breaks up first.
 
 ![Input vs. output level for a 220 Hz sine](docs/images/amp_gain_curve.png)
@@ -149,7 +154,8 @@ The cabinet EQ on its own, measured from the firmware filter's impulse response.
 
 ![Cabinet EQ response with each stage marked](docs/images/cab_response.png)
 
-Each amp's small-signal response with and without it. The cabinet keeps each
+Each amp's small-signal response with and without it (the Princeton, which
+never uses it, is left out of these figures). The cabinet keeps each
 amp's voicing through the mids and removes what a speaker could not reproduce.
 
 ![Amp-only and amp-plus-cabinet frequency response](docs/images/cab_amp_response.png)
@@ -167,7 +173,7 @@ The same low-pass rounds the edges of a clipped waveform.
 
 | Command | Purpose |
 | --- | --- |
-| `make` | Build firmware and embed all three models. |
+| `make` | Build firmware and embed all four models. |
 | `make test` | Compare against upstream NAM and run sanitized host audio tests. |
 | `make viz` | Render the figures above to `build/viz/` (sets up `.venv/` on first run). |
 | `make viz-docs` | Render the figures and copy the ones above to `docs/images/`. |
