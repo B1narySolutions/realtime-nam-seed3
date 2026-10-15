@@ -56,10 +56,10 @@ void AudioCallback(daisy::AudioHandle::InputBuffer input_channels, daisy::AudioH
 // USB interrupt: record a command only. Never allocate or construct a model
 // here.
 void OnUsbReceive(uint8_t *data, uint32_t *byte_count) {
-    // '0'-'3' select bypass or an amp; 'C' toggles the cabinet; 'B' asks for
+    // '0'-'4' select bypass or an amp; 'C' toggles the cabinet; 'B' asks for
     // the DFU bootloader.
     for (uint32_t i = 0; i < *byte_count; ++i) {
-        if (data[i] >= '0' && data[i] <= '3')
+        if (data[i] >= '0' && data[i] <= '4')
             requested_amp.store(data[i] - '0', std::memory_order_relaxed);
         else if (data[i] == 'C' || data[i] == 'c')
             requested_cabinet.store(!requested_cabinet.load(std::memory_order_relaxed), std::memory_order_relaxed);
@@ -140,7 +140,7 @@ static void ReportProfile(AppState &state) {
 }
 #endif
 
-static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 C=cab B=DFU ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
+static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 4=Princeton C=cab B=DFU ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
 
 static void InitHardware() {
     seed.Init(true); // 480 MHz boost; the model needs the headroom.
@@ -203,7 +203,7 @@ static void ApplyPendingCabinetCommand() {
     seed.StopAudio();
     audio.SetCabinet(enabled);
     seed.StartAudio(AudioCallback);
-    seed.PrintLine(">>> cabinet %s", enabled ? "on" : "off");
+    seed.PrintLine(">>> cabinet %s%s", enabled ? "on" : "off", audio.CabinetApplies() ? "" : " (this amp's capture has its own, so it is skipped)");
 }
 
 // Prints the knob readings at startup and whenever either has moved by 2%
@@ -259,7 +259,8 @@ static void ReportStatus(AppState &state) {
 
     // Print the status line.
     const char *mode = bypass ? "bypass" : (state.model_ready ? "active" : "failed");
-    const char *cabinet = active ? (audio.CabinetEnabled() ? "on" : "off") : "-";
+    // "amp" means the capture includes its own cabinet, so the EQ is skipped.
+    const char *cabinet = !active ? "-" : !audio.CabinetApplies() ? "amp" : audio.CabinetEnabled() ? "on" : "off";
     seed.PrintLine("[%-6s %-22s]  cab %-3s  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", cabinet, static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
     ReportKnobs(state);
 #ifdef A2_LITE_PROFILE

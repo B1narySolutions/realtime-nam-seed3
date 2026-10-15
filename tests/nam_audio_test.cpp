@@ -31,10 +31,14 @@ int main(int argc, char **argv) {
     // Reuse the audio path across switches to every amp, then back to the first.
     for (int step = 0; step <= kAmpCount; ++step) {
         const int id = step % kAmpCount + 1;
-        // The cabinet is on by default, so expect upstream's output through it.
+        const bool cabinet_applies = !AmpIncludesCabinet(static_cast<AmpId>(id));
+        // The cabinet is on by default, so expect upstream's output through
+        // it, unless the capture has its own. The setting itself stays on.
         std::vector<float> reference = ReadReference(argv[id]);
-        CabFilter().Process(reference.data(), reference.size());
+        if (cabinet_applies)
+            CabFilter().Process(reference.data(), reference.size());
         assert(audio.LoadAmpModel(static_cast<AmpId>(id)));
+        assert(audio.CabinetEnabled() && audio.CabinetApplies() == cabinet_applies);
         input.fill(0.5f);
         audio.Process(input.data(), left.data(), right.data(), 49, false);
         assert(left[48] == 0.4f && right[48] == 0.4f);

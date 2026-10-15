@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Neural amp modeling firmware for the Daisy Seed (STM32H7, Cortex-M7 at 480 MHz) using libDaisy. It runs three A2-Lite NAM models (Fender Twin65, Vox AC30, Marshall JCM800) at 48 kHz with 48-sample blocks, giving a hard budget of 1000 us per audio callback.
+Neural amp modeling firmware for the Daisy Seed (STM32H7, Cortex-M7 at 480 MHz) using libDaisy. It runs four A2-Lite NAM models (Fender Twin65, Vox AC30, Marshall JCM800, Fender Princeton65) at 48 kHz with 48-sample blocks, giving a hard budget of 1000 us per audio callback.
 
 ## Project context
 
@@ -15,8 +15,8 @@ Run everything from the repository root.
 | Command | Purpose |
 | --- | --- |
 | `bash scripts/install.sh` (or `make install`) | Install the ARM toolchain and dfu-util, and fetch pinned libDaisy and NeuralAmpModelerCore into `libs/` |
-| `bash scripts/download_models.sh` (or `make download-models`) | Download the three `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
-| `make` | Build libDaisy (`-Os`) and the firmware (`-O3`), embedding all three models |
+| `bash scripts/download_models.sh` (or `make download-models`) | Download the four `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
+| `make` | Build libDaisy (`-Os`) and the firmware (`-O3`), embedding all four models |
 | `make test` | Host tests with ASan/UBSan: upstream NAM comparison, processor, cabinet, output controls, audio path, converter |
 | `make viz` | Render presentation figures (engine vs upstream accuracy, amp comparisons, the cabinet EQ) to `build/viz/`, creating `.venv/` from `viz/requirements.txt` |
 | `make viz-docs` | `make viz`, then copy the README's figures (all but the stats slide) to `docs/images/`. Rerun after changing the engine or `viz/figures.py` |
@@ -41,7 +41,7 @@ Signal path, top to bottom:
 
 - `src/main.cpp`: hardware init (including the ADC for the carrier board's volume and tone pots on `A0`/`A1`), the audio callback (passes on the knob readings, times every block and counts overruns), a USB receive interrupt that only records a key into atomics, and a main loop that applies model switches, prints a status line once a second and handles the DFU reboot. Model switches stop audio, load, then restart it. Nothing allocates in the interrupt or the audio callback.
 - `src/audio/nam_audio.*`: `NamAudio` takes the left input to both outputs, sanitizes NaN/inf, applies gain and clamp, and handles bypass (which skips the model entirely). `LoadAmpModel` frees the old model before building the next, because the delay lines take much of SRAM. A failed load leaves audio in bypass.
-- `src/audio/cab_filter.*`: `CabFilter`, a fixed six-biquad speaker EQ that `NamAudio` runs on the model's output (never in bypass), toggled with `C`. Its coefficients are designed at compile time with constexpr Taylor series (`constexpr_math.h`) so the firmware doesn't link libm's `sin`/`cos`/`pow` (about 13 KB of flash).
+- `src/audio/cab_filter.*`: `CabFilter`, a fixed six-biquad speaker EQ that `NamAudio` runs on the model's output (never in bypass, and never for an amp whose `includes_cabinet` is set in `models/amps.json`), toggled with `C`. Its coefficients are designed at compile time with constexpr Taylor series (`constexpr_math.h`) so the firmware doesn't link libm's `sin`/`cos`/`pow` (about 13 KB of flash).
 - `src/audio/output_controls.*`: `OutputControls`, the volume and tone knobs, which `NamAudio` applies to its final output (in bypass too). Volume is a cubic audio taper; tone is two one-pole low-passes whose coefficient is interpolated from a compile-time table that ends in an exact pass-through. Knob moves glide with a 20 ms time constant.
 - `src/audio/constexpr_math.h`: the compile-time Taylor series both filters use for their designs.
 - `src/audio/nam_processor.*`: `NamProcessor` owns one `AmpModel`, validates the sample rate and block size, and commits a new model only after `Reset` succeeds.

@@ -7,7 +7,7 @@ experiments that were measured and rejected.
 
 All numbers are the audio callback time for one 48-sample block at 48 kHz,
 averaged over one second, as printed on the serial status line. The budget
-is 1000 us per block. The Seed runs at 480 MHz unless noted. The three amp
+is 1000 us per block. The Seed runs at 480 MHz unless noted. The four amp
 models share one shape and measure the same.
 
 `make upload PROFILE=1` adds a per-layer cycle table every 5 s; see

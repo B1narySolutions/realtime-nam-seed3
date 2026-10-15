@@ -110,6 +110,7 @@ int main(int argc, char **argv) {
     for (int id : {0, kAmpCount + 1, 99}) {
         assert(!CreateAmpModel(static_cast<AmpId>(id)));
         assert(std::string(AmpName(static_cast<AmpId>(id))) == "invalid");
+        assert(!AmpIncludesCabinet(static_cast<AmpId>(id)));
     }
     for (int id = 1; id <= kAmpCount; ++id) {
         const AmpId amp = static_cast<AmpId>(id);

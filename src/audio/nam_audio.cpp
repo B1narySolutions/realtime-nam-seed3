@@ -14,8 +14,10 @@ float ApplyOutputGainAndClamp(float sample) {
 bool NamAudio::LoadAmpModel(AmpId amp) {
     ready_ = false;
 
-    // The new model starts from silence, so the cabinet should too.
+    // The new model starts from silence, so the cabinet should too. A capture
+    // with its own mic'd speaker skips the cabinet EQ.
     cabinet_.Reset();
+    amp_includes_cabinet_ = AmpIncludesCabinet(amp);
 
     // Free the old model first; two never coexist (delay lines take much of SRAM).
     processor_.ClearModel();
@@ -39,8 +41,9 @@ void NamAudio::Process(const float *input_left, float *output_left, float *outpu
     const bool processed = !bypass_model && ProcessModel(input_left, frame_count);
     const float *source = processed ? output_.data() : input_left;
 
-    // Shape the amp's output through the cabinet EQ; the clean input skips it.
-    if (processed && cabinet_enabled_)
+    // Shape the amp's output through the cabinet EQ; the clean input and
+    // captures that already include a cabinet skip it.
+    if (processed && cabinet_enabled_ && !amp_includes_cabinet_)
         cabinet_.Process(output_.data(), frame_count);
 
     // Copy to the left output to work in place, replacing NaN and infinity
