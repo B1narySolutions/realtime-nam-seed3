@@ -5,10 +5,9 @@ Fender '65 Twin Reverb, Vox AC30 Chimey, Marshall JCM800 (gain 5), and
 Fender '65 Princeton Reverb (edge of breakup, SM57).
 
 This firmware is one part of a capstone project, a portable touchscreen practice
-guitar amp. For the whole project (requirements, hardware, test plans and the
-decision log), see
-[capstone-documentation](https://github.com/B1narySolutions/capstone-documentation).
-Check there before making a decision that affects more than the firmware.
+guitar amp. The hardware it runs on is the carrier board in
+[seed3-carrier-board](https://github.com/B1narySolutions/seed3-carrier-board).
+Each repository keeps its own documentation alongside the work.
 
 ## Setup
 
