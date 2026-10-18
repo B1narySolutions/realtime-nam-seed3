@@ -6,7 +6,7 @@ Neural amp modeling firmware for the Daisy Seed (STM32H7, Cortex-M7 at 480 MHz) 
 
 ## Project context
 
-This firmware is one part of a larger capstone project: a portable touchscreen practice guitar amp built around a custom carrier board ([seed3-carrier-board](https://github.com/B1narySolutions/seed3-carrier-board)). Whole-project documentation lives in [capstone-documentation](https://github.com/B1narySolutions/capstone-documentation): requirements, hardware facts and measurements, test plans, and the decision log. Read it before a decision that needs full project context, such as pin assignments, audio I/O routing, power, UI or features the spec requires. Record new project-wide decisions there, not here.
+This firmware is one part of a larger capstone project: a portable touchscreen practice guitar amp built around a custom carrier board ([seed3-carrier-board](https://github.com/B1narySolutions/seed3-carrier-board)). Documentation lives alongside the work: firmware docs in this repository, hardware docs in the carrier board repository. Check the carrier board repository before a decision that needs hardware context, such as pin assignments, audio I/O routing or power.
 
 ## Commands
 
