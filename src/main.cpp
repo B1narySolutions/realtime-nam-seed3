@@ -10,12 +10,12 @@ static std::atomic<uint32_t> audio_callbacks{0};
 static std::atomic<uint32_t> max_callback_us{0};
 static std::atomic<uint32_t> total_callback_us{0};
 static std::atomic<uint32_t> overruns{0};
-static std::atomic<uint32_t> requested_amp{1};
+static std::atomic<uint32_t> requested_amp{0};
 static std::atomic<bool> requested_cabinet{true};
 static std::atomic<bool> bootloader_requested{false};
 static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio counters must be lock-free");
 // Only changed while audio is stopped.
-static bool bypass = false;
+static bool bypass = true;
 // ADC channels for the carrier board's pots: volume (RV2) on Daisy pin 22
 // (A0) and tone (RV3) on pin 23 (A1).
 enum Knob : uint8_t { kVolumeKnob, kToneKnob, kKnobCount };
@@ -84,7 +84,7 @@ static void EnterBootloaderIfRequested() {
 
 struct AppState {
     AmpId selected_amp = AmpId::Fender;
-    uint32_t current_command = 1;
+    uint32_t current_command = 0;
     bool model_ready = false;
     uint32_t last_report_ms = 0;
     bool led_on = false;
@@ -273,9 +273,9 @@ static void ReportStatus(AppState &state) {
 int main() {
     InitHardware();
 
-    // Load the default amp, start from where the knobs are, and start audio.
+    // Boot in bypass with no model loaded, start from where the knobs are, and
+    // start audio. Keys 1-4 load an amp.
     AppState state;
-    state.model_ready = audio.LoadAmpModel(state.selected_amp);
     audio.SetKnobs(seed.adc.GetFloat(kVolumeKnob), seed.adc.GetFloat(kToneKnob));
     audio.ResetKnobs();
     seed.StartAudio(AudioCallback);
