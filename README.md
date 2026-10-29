@@ -42,6 +42,27 @@ serial and it reboots into DFU mode on its own. Otherwise (first flash, other
 firmware, or a hung board), hold **BOOT**, press and release **RESET**, then
 release **BOOT** to enter DFU mode before running `make upload`.
 
+## Touchscreen link and effects
+
+This branch adds the link to the ESP32 touchscreen (`src/link/`, from the
+[esp32-touchscreen-ui](https://github.com/B1narySolutions/esp32-touchscreen-ui) repo) and the six
+effects (`src/fx/`): gate, compressor and drive before the amp, chorus, delay and reverb after it.
+The touchscreen's UART goes to D13 (Seed TX), D14 (Seed RX) and DGND at 1 Mbaud; see that repo's
+`docs/LAB_DAY_CHECKLIST.md` for the wiring.
+
+With the six effects the firmware no longer fits the Seed's 128 KB internal flash, so it runs from
+the 8 MB QSPI flash through the Daisy bootloader instead:
+
+```sh
+make build-boot    # build for the bootloader (build-boot/passthrough.bin)
+make upload-boot   # build, then flash; installs the bootloader the first time
+```
+
+`upload-boot` first backs up the Seed's flash to `build-boot/backups/` and prints the command that
+puts the old firmware back (`bash scripts/flash_boot.sh --restore FILE`). The app starts 2 s after
+power-up, while the bootloader waits for DFU. Plain `make upload` still builds for the internal
+flash and fails with the effects included.
+
 The firmware starts with Fender selected. Press a key in the serial monitor
 to switch models or bypass; no Enter is needed:
 

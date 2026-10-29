@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := build
 JOBS ?= 4
 
-.PHONY: install download-models build model upload program-dfu monitor format compiledb test viz viz-docs clean help
+.PHONY: install download-models build build-boot upload-boot model upload program-dfu monitor format compiledb test viz viz-docs clean help
 install:
 	bash scripts/install.sh
 
@@ -13,6 +13,15 @@ build:
 	@test -f libs/libDaisy/core/Makefile || { echo 'Run make install first.'; exit 1; }
 	$(MAKE) -C libs/libDaisy -j$(JOBS) OPT=-Os
 	$(MAKE) -f make/firmware.mk all
+
+# The six effects do not fit the Seed's 128 KB internal flash. This builds the app for the Daisy
+# bootloader instead: it runs from the QSPI flash and is copied into the AXI SRAM at power-up.
+build-boot:
+	$(MAKE) build APP_TYPE=BOOT_SRAM LDSCRIPT=make/STM32H750IB_sram_app.lds BUILD_DIR=build-boot
+
+upload-boot: build-boot
+	@command -v dfu-util >/dev/null || { echo 'Run make install first.'; exit 1; }
+	bash scripts/flash_boot.sh
 
 upload: build
 	@command -v dfu-util >/dev/null || { echo 'Run make install first.'; exit 1; }
@@ -66,6 +75,8 @@ help:
 	@echo 'make viz      Render presentation figures of the amp models to build/viz/.'
 	@echo 'make viz-docs Render the figures and copy the README's to docs/images/.'
 	@echo 'make upload   Build and flash via USB; the running firmware enters DFU itself (else BOOT + RESET).'
+	@echo 'make build-boot Build for the Daisy bootloader (QSPI flash); needed with the six effects.'
+	@echo 'make upload-boot Build that and flash it, installing the bootloader if needed (backs up first).'
 	@echo 'make monitor  Open USB serial in screen (optional PORT=/dev/cu.usbmodem... or /dev/ttyACM...).'
 	@echo 'make format   Format C/C++ files under src/ using .clang-format.'
 	@echo 'make compiledb Generate compile_commands.json for clangd without building.'
