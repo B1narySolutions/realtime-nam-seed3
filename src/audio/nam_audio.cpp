@@ -1,4 +1,5 @@
 #include "audio/nam_audio.h"
+#include "models/a2_lite.h"
 #include <algorithm>
 #include <cmath>
 
@@ -25,6 +26,21 @@ bool NamAudio::LoadAmpModel(AmpId amp) {
     // Build and prepare the new model; on any failure audio stays in bypass.
     try {
         ready_ = processor_.SetModel(CreateAmpModel(amp), kSampleRate, kBlockSize);
+    } catch (...) {
+        // Allocation/construction failure must not prevent audio startup.
+    }
+    return ready_;
+}
+
+bool NamAudio::LoadUploadedModel(const float *weights) {
+    ready_ = false;
+
+    // Same steps as LoadAmpModel, with the model built on the uploaded weights.
+    cabinet_.Reset();
+    amp_includes_cabinet_ = false;
+    processor_.ClearModel();
+    try {
+        ready_ = processor_.SetModel(std::make_unique<A2Lite>(weights), kSampleRate, kBlockSize);
     } catch (...) {
         // Allocation/construction failure must not prevent audio startup.
     }

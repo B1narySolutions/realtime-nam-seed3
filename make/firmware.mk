@@ -1,5 +1,6 @@
 TARGET = passthrough
-CPP_SOURCES = src/main.cpp src/audio/nam_processor.cpp src/audio/nam_audio.cpp src/audio/cab_filter.cpp src/audio/output_controls.cpp src/models/amp_models.cpp src/models/a2_lite.cpp
+C_SOURCES = src/link/seed_link_proto.c src/link/slp_receiver.c
+CPP_SOURCES = src/main.cpp src/audio/nam_processor.cpp src/audio/nam_audio.cpp src/audio/cab_filter.cpp src/audio/output_controls.cpp src/models/amp_models.cpp src/models/a2_lite.cpp src/fx/effects.cpp
 C_INCLUDES = -Isrc -Ibuild/generated
 CPP_STANDARD = -std=gnu++20
 # Optimize application and model code for speed; libDaisy builds with -Os.
@@ -40,3 +41,6 @@ compile-objects: $(OBJECTS)
 $(OBJECTS): make/firmware.mk
 $(BUILD_DIR)/amp_models.o: $(A2_HEADER)
 $(BUILD_DIR)/$(TARGET).elf: make/firmware.mk $(LIBDAISY_DIR)/build/libdaisy.a
+
+# Effects: small code over speed (a few us per block either way).
+$(BUILD_DIR)/effects.o: CPPFLAGS += -Os
