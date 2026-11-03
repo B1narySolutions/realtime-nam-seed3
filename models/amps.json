@@ -6,7 +6,9 @@
     "url": "https://api.tone3000.com/storage/v1/object/public/models/2zbg20dlaqu_a2.nam",
     "download_sha256": "98b69400de5d674a7b6bdc6c267b2cb82a250ba99829fa42a7d8b02f9224985a",
     "page": "https://www.tone3000.com/tones/fender-twin-reverb-65-blackface-ri-45968",
-    "includes_cabinet": false
+    "includes_cabinet": false,
+    "input_trim_db": -13.2,
+    "output_trim_db": 5.1
   },
   {
     "amp_id": "Vox",
@@ -15,7 +17,9 @@
     "url": "https://api.tone3000.com/storage/v1/object/public/models/6e16b996ad4ea65b_a2.nam",
     "download_sha256": "7c25d76cb0cbe2086197dcf11fdf7a21aaf4deffea413d8558d00bb28bdc39fc",
     "page": "https://www.tone3000.com/tones/vox-ac-30-custom-classic-2568",
-    "includes_cabinet": false
+    "includes_cabinet": false,
+    "input_trim_db": 0.0,
+    "output_trim_db": 5.1
   },
   {
     "amp_id": "Marshall",
@@ -24,7 +28,9 @@
     "url": "https://api.tone3000.com/storage/v1/object/public/models/11fc0db6d4cf7849_a2.nam",
     "download_sha256": "d9454552f64de2bad497b0e25025010d3c1e770d0b44790c060d0428d29ec772",
     "page": "https://www.tone3000.com/tones/marshall-jcm-800-2203-1071",
-    "includes_cabinet": false
+    "includes_cabinet": false,
+    "input_trim_db": 0.0,
+    "output_trim_db": -7.3
   },
   {
     "amp_id": "Princeton",
@@ -33,6 +39,8 @@
     "url": "https://api.tone3000.com/storage/v1/object/public/models/cwtfgl2ad39_a2.nam",
     "download_sha256": "1e9207731bb1945922644c69eeabda24859e9c61229e09a7484db88d0d8a4d57",
     "page": "https://www.tone3000.com/tones/65-fender-princeton-with-various-mics-42319",
-    "includes_cabinet": true
+    "includes_cabinet": true,
+    "input_trim_db": 0.0,
+    "output_trim_db": -3.2
   }
 ]

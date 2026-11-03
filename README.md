@@ -77,7 +77,13 @@ scoops 400 Hz, and rolls off at 24 dB/octave above 5 kHz. Press `C` to
 compare with the raw amp. Bypass skips the cabinet too. The Princeton capture
 already includes its mic'd 10-inch speaker, so it always skips the cabinet EQ;
 `C` still sets the choice for the other amps. It is an EQ, not a measured
-cabinet impulse response, and hardware gain calibration is not implemented.
+cabinet impulse response.
+
+Each amp has its own input and output trim, set in `models/amps.json`. The
+output trims play every amp at about the same loudness, so switching amps
+doesn't jump in volume. The Twin's input trim (−13.2 dB) feeds it the level its
+capture was made at; the other captures don't record theirs. Bypass skips the
+trims. [`models/README.md`](models/README.md) explains how they were measured.
 
 If multiple serial ports are connected, use `make monitor PORT=/dev/cu.usbmodem…`.
 Exit the monitor with **Ctrl-A**, then **K**, then **Y**.

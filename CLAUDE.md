@@ -40,7 +40,7 @@ Without the downloaded models, `make test` runs only `nam_processor_test`, `cab_
 Signal path, top to bottom:
 
 - `src/main.cpp`: hardware init (including the ADC for the carrier board's volume and tone pots on `A0`/`A1`), the audio callback (passes on the knob readings, times every block and counts overruns), a USB receive interrupt that only records a key into atomics, and a main loop that applies model switches, prints a status line once a second and handles the DFU reboot. Model switches stop audio, load, then restart it. Nothing allocates in the interrupt or the audio callback.
-- `src/audio/nam_audio.*`: `NamAudio` takes the left input to both outputs, sanitizes NaN/inf, applies gain and clamp, and handles bypass (which skips the model entirely). `LoadAmpModel` frees the old model before building the next, because the delay lines take much of SRAM. A failed load leaves audio in bypass.
+- `src/audio/nam_audio.*`: `NamAudio` takes the left input to both outputs, sanitizes NaN/inf, scales the model's input and output by the amp's trims, applies output gain and clamp, and handles bypass (which skips the model and its trims entirely). `LoadAmpModel` frees the old model before building the next, because the delay lines take much of SRAM. A failed load leaves audio in bypass.
 - `src/audio/cab_filter.*`: `CabFilter`, a fixed six-biquad speaker EQ that `NamAudio` runs on the model's output (never in bypass, and never for an amp whose `includes_cabinet` is set in `models/amps.json`), toggled with `C`. Its coefficients are designed at compile time with constexpr Taylor series (`constexpr_math.h`) so the firmware doesn't link libm's `sin`/`cos`/`pow` (about 13 KB of flash).
 - `src/audio/output_controls.*`: `OutputControls`, the volume and tone knobs, which `NamAudio` applies to its final output (in bypass too). Volume is a cubic audio taper; tone is two one-pole low-passes whose coefficient is interpolated from a compile-time table that ends in an exact pass-through. Knob moves glide with a 20 ms time constant.
 - `src/audio/constexpr_math.h`: the compile-time Taylor series both filters use for their designs.
@@ -51,7 +51,7 @@ Signal path, top to bottom:
 
 ### Model data pipeline
 
-`models/amps.json` is the single source of the amp list and its order (it must match `AmpId`, starting at 1). `scripts/convert_a2.py` validates each `.nam` against the fixed A2-Lite shape and writes `build/generated/embedded_a2_data.h`. That header static_asserts the shape in `src/models/a2_lite.h`, and `amp_models.cpp` static_asserts the count and order. The firmware never parses configuration at runtime. To change the architecture, update `a2_lite.h`, `convert_a2.py` and the weight-stream layout together.
+`models/amps.json` is the single source of the amp list and its order (it must match `AmpId`, starting at 1), and of each amp's `includes_cabinet` and input and output trims in dB. The converter turns the trims into linear gains; `models/README.md` explains how they were measured. `scripts/convert_a2.py` validates each `.nam` against the fixed A2-Lite shape and writes `build/generated/embedded_a2_data.h`. That header static_asserts the shape in `src/models/a2_lite.h`, and `amp_models.cpp` static_asserts the count and order. The firmware never parses configuration at runtime. To change the architecture, update `a2_lite.h`, `convert_a2.py` and the weight-stream layout together.
 
 The model weights are T3K-licensed: never commit `models/local/` or firmware binaries containing them.
 

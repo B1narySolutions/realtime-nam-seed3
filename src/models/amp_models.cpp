@@ -37,6 +37,16 @@ bool AmpIncludesCabinet(AmpId id) {
     return model && model->includes_cabinet;
 }
 
+float AmpInputGain(AmpId id) {
+    const auto *model = FindModel(id);
+    return model ? model->input_gain : 1.0f;
+}
+
+float AmpOutputGain(AmpId id) {
+    const auto *model = FindModel(id);
+    return model ? model->output_gain : 1.0f;
+}
+
 std::unique_ptr<AmpModel> CreateAmpModel(AmpId id) {
     const auto *model = FindModel(id);
     return model ? std::make_unique<A2Lite>(model->weights) : nullptr;

@@ -61,6 +61,28 @@ class ConvertA2Test(unittest.TestCase):
             with self.assertRaises(ValueError):
                 converter.extract(bad, 'container')
 
+    def test_trims(self):
+        self.assertEqual(converter.gain(0), 1.0)
+        self.assertAlmostEqual(converter.gain(-6.0), 0.501187, places=6)
+        amps = converter.load_manifest()
+        header = converter.header(amps, Path('models/local'))
+        for amp in amps:
+            self.assertIn(f"{converter.gain(amp['input_trim_db']).hex()}f, "
+                          f"{converter.gain(amp['output_trim_db']).hex()}f}}", header)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'amps.json'
+            for key in ('input_trim_db', 'output_trim_db'):
+                for value in ('0', True, None, float('nan'), 24.5, -30):
+                    bad = [dict(amps[0], **{key: value})]
+                    path.write_text(json.dumps(bad))
+                    with self.assertRaises(ValueError):
+                        converter.load_manifest(path)
+                missing = [{k: v for k, v in amps[0].items() if k != key}]
+                path.write_text(json.dumps(missing))
+                with self.assertRaises(KeyError):
+                    converter.load_manifest(path)
+
     def test_all_required_models(self):
         for amp in converter.load_manifest():
             packed, digest = converter.convert(Path('models/local') / amp['file'])

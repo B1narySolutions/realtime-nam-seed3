@@ -19,6 +19,10 @@ bool NamAudio::LoadAmpModel(AmpId amp) {
     cabinet_.Reset();
     amp_includes_cabinet_ = AmpIncludesCabinet(amp);
 
+    // Level the model with the amp's trims from models/amps.json.
+    input_gain_ = AmpInputGain(amp);
+    output_gain_ = AmpOutputGain(amp);
+
     // Free the old model first; two never coexist (delay lines take much of SRAM).
     processor_.ClearModel();
 
@@ -66,9 +70,16 @@ bool NamAudio::ProcessModel(const float *input, std::size_t frame_count) {
     if (!ready_ || frame_count > kBlockSize)
         return false;
 
-    // Copy the input in with gain, replacing NaN and infinity with silence.
+    // Copy the input in with the amp's input trim, replacing NaN and infinity with silence.
     for (std::size_t i = 0; i < frame_count; ++i)
-        input_[i] = std::isfinite(input[i]) ? input[i] * kInputGain : 0.0f;
+        input_[i] = std::isfinite(input[i]) ? input[i] * input_gain_ : 0.0f;
 
-    return processor_.Process(input_.data(), output_.data(), frame_count);
+    // Run the model; if it fails, NamAudio::Process passes the input through.
+    if (!processor_.Process(input_.data(), output_.data(), frame_count))
+        return false;
+
+    // Apply the amp's output trim so every amp plays at about the same loudness.
+    for (std::size_t i = 0; i < frame_count; ++i)
+        output_[i] *= output_gain_;
+    return true;
 }

@@ -13,6 +13,8 @@ from pathlib import Path
 import struct
 
 MANIFEST = Path("models/amps.json")
+# Largest input or output trim amps.json may set, in dB either way.
+TRIM_LIMIT_DB = 24
 
 # Network shape. The generated header static_asserts that it matches
 # src/models/a2_lite.h.
@@ -123,11 +125,23 @@ def extract(container, path):
     return model
 
 
+def is_trim(value):
+    """A level trim in dB: a finite number no larger than TRIM_LIMIT_DB either way."""
+    return (type(value) in (int, float) and math.isfinite(value)
+            and abs(value) <= TRIM_LIMIT_DB)
+
+
+def gain(trim_db):
+    """The float32 linear gain of a trim, computed here so the firmware needn't link pow."""
+    return to_float32([10 ** (trim_db / 20)], "trim")[0]
+
+
 def load_manifest(path=MANIFEST):
     amps = json.loads(path.read_text())
     for amp in amps:
         if not (amp["amp_id"].isidentifier() and amp["file"].endswith(".nam")
-                and isinstance(amp["includes_cabinet"], bool)):
+                and isinstance(amp["includes_cabinet"], bool)
+                and is_trim(amp["input_trim_db"]) and is_trim(amp["output_trim_db"])):
             raise ValueError(f"{path}: bad entry {amp}")
     return amps
 
@@ -159,10 +173,14 @@ def header(amps, models_dir):
     lines += ["", "struct Model {", "    AmpId id;", "    const char *name;",
               "    const float *weights;", "    std::size_t weight_count;",
               "    // The capture already has a mic'd speaker, so the cabinet EQ is skipped.",
-              "    bool includes_cabinet;", "};", "",
+              "    bool includes_cabinet;",
+              "    // Linear gains of amps.json's trims: on the model's input, and on its output.",
+              "    float input_gain;", "    float output_gain;", "};", "",
               "// In AmpId order.", "inline constexpr Model kModels[] = {"]
     lines += [f"    {{AmpId::{amp['amp_id']}, {json.dumps(amp['name'])}, k{amp['amp_id']}, "
-              f"std::size(k{amp['amp_id']}), {str(amp['includes_cabinet']).lower()}}}," for amp in amps]
+              f"std::size(k{amp['amp_id']}), {str(amp['includes_cabinet']).lower()}, "
+              f"{gain(amp['input_trim_db']).hex()}f, {gain(amp['output_trim_db']).hex()}f}},"
+              for amp in amps]
     lines += ["};", "} // namespace embedded_a2", ""]
     return "\n".join(lines)
 

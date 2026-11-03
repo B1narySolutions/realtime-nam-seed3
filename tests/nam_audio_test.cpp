@@ -31,13 +31,17 @@ int main(int argc, char **argv) {
     // Reuse the audio path across switches to every amp, then back to the first.
     for (int step = 0; step <= kAmpCount; ++step) {
         const int id = step % kAmpCount + 1;
-        const bool cabinet_applies = !AmpIncludesCabinet(static_cast<AmpId>(id));
+        const AmpId amp = static_cast<AmpId>(id);
+        const bool cabinet_applies = !AmpIncludesCabinet(amp);
         // The cabinet is on by default, so expect upstream's output through
-        // it, unless the capture has its own. The setting itself stays on.
+        // it, unless the capture has its own, and then the amp's output
+        // trim. The setting itself stays on.
         std::vector<float> reference = ReadReference(argv[id]);
         if (cabinet_applies)
             CabFilter().Process(reference.data(), reference.size());
-        assert(audio.LoadAmpModel(static_cast<AmpId>(id)));
+        for (float &sample : reference)
+            sample *= AmpOutputGain(amp);
+        assert(audio.LoadAmpModel(amp));
         assert(audio.CabinetEnabled() && audio.CabinetApplies() == cabinet_applies);
         input.fill(0.5f);
         audio.Process(input.data(), left.data(), right.data(), 49, false);
@@ -61,9 +65,10 @@ int main(int argc, char **argv) {
                     assert(left[48] == 123.0f && right[48] == 123.0f);
                 }
             }
+            // Undo the amp's input trim, so the model sees upstream's input.
             const int frames = std::min(offset % 3 == 0 ? 48 : 17, kTestSamples - offset);
             for (int i = 0; i < frames; ++i)
-                input[i] = TestInput(offset + i);
+                input[i] = TestInput(offset + i) / AmpInputGain(amp);
             left.fill(123.0f);
             right.fill(123.0f);
             const auto allocations = allocation_count;
@@ -86,16 +91,17 @@ int main(int argc, char **argv) {
         for (int i = 0; i < 3; ++i)
             assert(std::isfinite(left[i]) && std::fabs(left[i]) <= 1);
     }
-    // With the cabinet off, the output is upstream's again.
+    // With the cabinet off, the output is upstream's again, after the trims.
+    const AmpId first = static_cast<AmpId>(1);
     const std::vector<float> raw_reference = ReadReference(argv[1]);
-    assert(audio.LoadAmpModel(static_cast<AmpId>(1)));
+    assert(audio.LoadAmpModel(first));
     audio.SetCabinet(false);
     for (int offset = 0; offset < kTestSamples; offset += 48) {
         for (int i = 0; i < 48; ++i)
-            input[i] = TestInput(offset + i);
+            input[i] = TestInput(offset + i) / AmpInputGain(first);
         audio.Process(input.data(), left.data(), right.data(), 48, false);
         for (int i = 0; i < 48; ++i)
-            assert(std::fabs(left[i] - std::clamp(raw_reference[offset + i] * NamAudio::kOutputGain, -1.0f, 1.0f)) < 1e-4f);
+            assert(std::fabs(left[i] - std::clamp(raw_reference[offset + i] * AmpOutputGain(first) * NamAudio::kOutputGain, -1.0f, 1.0f)) < 1e-4f);
     }
     audio.SetCabinet(true);
     assert(!audio.LoadAmpModel(static_cast<AmpId>(99)));

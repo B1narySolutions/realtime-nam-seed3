@@ -11,7 +11,6 @@ class NamAudio {
   public:
     static constexpr std::size_t kBlockSize = 48;
     static constexpr double kSampleRate = 48000.0;
-    static constexpr float kInputGain = 1.0f;
     static constexpr float kOutputGain = 0.8f;
     static_assert(CabFilter::kSampleRate == kSampleRate, "The cabinet is designed for one sample rate");
     static_assert(OutputControls::kSampleRate == kSampleRate, "The tone filter is designed for one sample rate");
@@ -37,8 +36,10 @@ class NamAudio {
     // down from full volume.
     void ResetKnobs() { controls_.Reset(); }
 
-    // Left input to both outputs. Bypass skips the model and the cabinet
-    // entirely, so their state stays where bypass began. The volume and
+    // Left input to both outputs. The amp's input and output trims (see
+    // AmpInputGain and AmpOutputGain) scale the model's input and output.
+    // Bypass skips the model, its trims and the cabinet entirely, so the
+    // model's and cabinet's state stays where bypass began. The volume and
     // tone knobs apply either way. Buffers must contain at least
     // frame_count samples.
     void Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model);
@@ -51,6 +52,9 @@ class NamAudio {
     CabFilter cabinet_;
     bool cabinet_enabled_ = true;
     bool amp_includes_cabinet_ = false;
+    // The loaded amp's trims, as linear gains.
+    float input_gain_ = 1.0f;
+    float output_gain_ = 1.0f;
     OutputControls controls_;
     // Scratch buffers so the model never reads or writes the caller's buffers.
     std::array<float, kBlockSize> input_{};
