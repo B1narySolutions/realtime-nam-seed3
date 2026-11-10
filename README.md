@@ -47,8 +47,8 @@ to switch models or bypass; no Enter is needed:
 
 | Key | Selection |
 | --- | --- |
-| `0` | Clean bypass (the mode it boots into) |
-| `1` | Fender '65 Twin Reverb |
+| `0` | Clean bypass |
+| `1` | Fender '65 Twin Reverb (the amp it boots into) |
 | `2` | Vox AC30 Chimey |
 | `3` | Marshall JCM800 (gain 5) |
 | `4` | Fender '65 Princeton Reverb (edge of breakup) |
