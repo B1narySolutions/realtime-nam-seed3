@@ -19,13 +19,10 @@ class NamAudio {
     bool LoadAmpModel(AmpId amp = AmpId::Fender);
 
     // Call with audio stopped. Turns the cabinet EQ after the model on or off
-    // (it starts on) and clears its memory either way. The setting survives
-    // model switches, but an amp whose capture includes a cabinet always
-    // skips the EQ (see CabinetApplies).
+    // and clears its memory either way. Each LoadAmpModel resets it to the
+    // amp's default: on, unless the amp's capture includes its own cabinet.
     void SetCabinet(bool enabled);
     bool CabinetEnabled() const { return cabinet_enabled_; }
-    // Whether the loaded amp's capture leaves the cabinet EQ to this path.
-    bool CabinetApplies() const { return !amp_includes_cabinet_; }
 
     // The volume and tone knob readings, each in [0, 1]. Process glides
     // toward the latest ones (see OutputControls); they start fully up.
@@ -51,7 +48,6 @@ class NamAudio {
     bool ready_ = false;
     CabFilter cabinet_;
     bool cabinet_enabled_ = true;
-    bool amp_includes_cabinet_ = false;
     // The loaded amp's trims, as linear gains.
     float input_gain_ = 1.0f;
     float output_gain_ = 1.0f;

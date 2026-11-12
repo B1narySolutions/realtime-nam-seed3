@@ -32,17 +32,18 @@ int main(int argc, char **argv) {
     for (int step = 0; step <= kAmpCount; ++step) {
         const int id = step % kAmpCount + 1;
         const AmpId amp = static_cast<AmpId>(id);
-        const bool cabinet_applies = !AmpIncludesCabinet(amp);
-        // The cabinet is on by default, so expect upstream's output through
-        // it, unless the capture has its own, and then the amp's output
-        // trim. The setting itself stays on.
+        const bool cabinet_default = !AmpIncludesCabinet(amp);
+        // Each load turns the cabinet on, unless the capture has its own, so
+        // expect upstream's output through it where it is on, and then the
+        // amp's output trim. Flipping it before the load checks the reset.
         std::vector<float> reference = ReadReference(argv[id]);
-        if (cabinet_applies)
+        if (cabinet_default)
             CabFilter().Process(reference.data(), reference.size());
         for (float &sample : reference)
             sample *= AmpOutputGain(amp);
+        audio.SetCabinet(!cabinet_default);
         assert(audio.LoadAmpModel(amp));
-        assert(audio.CabinetEnabled() && audio.CabinetApplies() == cabinet_applies);
+        assert(audio.CabinetEnabled() == cabinet_default);
         input.fill(0.5f);
         audio.Process(input.data(), left.data(), right.data(), 49, false);
         assert(left[48] == 0.4f && right[48] == 0.4f);
@@ -103,7 +104,23 @@ int main(int argc, char **argv) {
         for (int i = 0; i < 48; ++i)
             assert(std::fabs(left[i] - std::clamp(raw_reference[offset + i] * AmpOutputGain(first) * NamAudio::kOutputGain, -1.0f, 1.0f)) < 1e-4f);
     }
-    audio.SetCabinet(true);
+    // An amp whose capture has its own cabinet can still have the EQ turned on.
+    for (int id = 1; id <= kAmpCount; ++id) {
+        const AmpId amp = static_cast<AmpId>(id);
+        if (!AmpIncludesCabinet(amp))
+            continue;
+        std::vector<float> reference = ReadReference(argv[id]);
+        CabFilter().Process(reference.data(), reference.size());
+        assert(audio.LoadAmpModel(amp) && !audio.CabinetEnabled());
+        audio.SetCabinet(true);
+        for (int offset = 0; offset < kTestSamples; offset += 48) {
+            for (int i = 0; i < 48; ++i)
+                input[i] = TestInput(offset + i) / AmpInputGain(amp);
+            audio.Process(input.data(), left.data(), right.data(), 48, false);
+            for (int i = 0; i < 48; ++i)
+                assert(std::fabs(left[i] - std::clamp(reference[offset + i] * AmpOutputGain(amp) * NamAudio::kOutputGain, -1.0f, 1.0f)) < 1e-4f);
+        }
+    }
     assert(!audio.LoadAmpModel(static_cast<AmpId>(99)));
     input.fill(0.5f);
     audio.Process(input.data(), left.data(), right.data(), 48, false);

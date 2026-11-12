@@ -705,7 +705,7 @@ def main():
     drive_figure(amps)
     waveform_figure(amps)
     harmonics_figure(amps)
-    # The firmware skips the cabinet EQ for captures that include their own.
+    # The firmware starts with the cabinet EQ off for captures that include their own.
     cabinet_amps = [amp for amp in amps if not amp["includes_cabinet"]]
     cabinet_response_figure()
     cabinet_amp_response_figure(cabinet_amps)

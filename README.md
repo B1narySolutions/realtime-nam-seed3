@@ -52,7 +52,7 @@ to switch models or bypass; no Enter is needed:
 | `2` | Vox AC30 Chimey |
 | `3` | Marshall JCM800 (gain 5) |
 | `4` | Fender '65 Princeton Reverb (edge of breakup) |
-| `C` | Cabinet EQ on or off (starts on; the Princeton always skips it) |
+| `C` | Cabinet EQ on or off (each amp starts with it on, except the Princeton) |
 | `B` | Reboot into DFU mode for flashing |
 
 Audio runs at 48 kHz, with the left input processed and sent to both outputs.
@@ -75,8 +75,9 @@ without a speaker. A fixed cabinet EQ after the model stands in for one: it
 cuts below 75 Hz, adds a speaker resonance at 110 Hz and presence at 2.5 kHz,
 scoops 400 Hz, and rolls off at 24 dB/octave above 5 kHz. Press `C` to
 compare with the raw amp. Bypass skips the cabinet too. The Princeton capture
-already includes its mic'd 10-inch speaker, so it always skips the cabinet EQ;
-`C` still sets the choice for the other amps. It is an EQ, not a measured
+already includes its mic'd 10-inch speaker, so it starts with the cabinet EQ
+off; `C` can still turn it on. Loading an amp, including leaving bypass,
+resets the cabinet to that amp's default. It is an EQ, not a measured
 cabinet impulse response.
 
 Each amp has its own input and output trim, set in `models/amps.json`. The
@@ -102,7 +103,7 @@ The firmware prints one status line per second:
 | Field | Meaning |
 | --- | --- |
 | `[mode amp]` | `active` with the running model, `bypass`, or `failed` if the model did not load (audio is bypassed). |
-| `cab` | Whether the cabinet EQ is on; `amp` when the capture includes its own cabinet, so the EQ is skipped; `-` when no model is running. |
+| `cab` | Whether the cabinet EQ is on; `-` when no model is running. |
 | `avg` | Mean audio-callback time over the last second, as a percentage of the block budget and in microseconds. |
 | `peak` | Longest single callback over the last second. |
 | `headroom` | Budget minus peak: how much slower the callback could get before an overrun. Negative means an overrun happened. |
