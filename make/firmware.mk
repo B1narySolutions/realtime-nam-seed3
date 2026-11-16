@@ -13,6 +13,8 @@ include $(SYSTEM_FILES_DIR)/Makefile
 # so audio still starts in bypass. Keep IEEE floating-point behavior until
 # model accuracy and target performance have been measured.
 CPPFLAGS += -fexceptions
+include make/warnings.mk
+CPPFLAGS += $(FIRMWARE_WARNINGS)
 # nano.specs memcpy and memset copy one byte per iteration. Keep GCC from
 # turning A2-Lite's per-call weight copies and per-block fills into calls
 # to them; plain loops compile to word loads and stores.

@@ -14,6 +14,8 @@ APP_TYPE = BOOT_NONE
 # beats; its rules expand the directory as they are read.
 override BUILD_DIR := build/hwtest-fw
 include $(SYSTEM_FILES_DIR)/Makefile
+include make/warnings.mk
+CPPFLAGS += $(FIRMWARE_WARNINGS)
 
 include make/flash_dfu.mk
 

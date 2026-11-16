@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := build
 JOBS ?= 4
 
-.PHONY: install download-models build model upload program-dfu monitor format compiledb test viz viz-docs hwtest hwtest-build hwtest-upload hwtest-sim clean help
+.PHONY: install download-models build model upload program-dfu monitor format format-check check compiledb test viz viz-docs hwtest hwtest-build hwtest-upload hwtest-sim clean help
 install:
 	bash scripts/install.sh
 
@@ -78,9 +78,23 @@ compiledb: model
 	@test -f libs/libDaisy/core/Makefile || { echo 'Run make install first.'; exit 1; }
 	compiledb -n -f make -B -f make/firmware.mk compile-objects GCC_PATH="$$(dirname "$$(command -v arm-none-eabi-g++)")"
 
+FORMAT_SOURCES = find src tests -type f \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \)
+# CI installs this clang-format from PyPI. Other versions can wrap lines
+# differently, so format-check says when the local one differs.
+CLANG_FORMAT_VERSION = 23.1.3
+
 format:
 	@command -v clang-format >/dev/null || { echo 'Missing clang-format; install it with brew install clang-format or your package manager.'; exit 1; }
-	find src tests -type f \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -exec clang-format -i --style=file {} +
+	$(FORMAT_SOURCES) -exec clang-format -i --style=file {} +
+
+format-check:
+	@command -v clang-format >/dev/null || { echo 'Missing clang-format; install it with brew install clang-format or your package manager.'; exit 1; }
+	@clang-format --version | grep -q ' $(CLANG_FORMAT_VERSION)' || echo 'Note: CI uses clang-format $(CLANG_FORMAT_VERSION); yours may format differently.' >&2
+	$(FORMAT_SOURCES) -exec clang-format --dry-run -Werror --style=file {} +
+
+# Everything CI runs, in the same order (.github/workflows/ci.yml). Needs
+# make install and make download-models first.
+check: build hwtest-build test format-check hwtest-sim
 
 clean:
 	rm -rf build
@@ -99,6 +113,8 @@ help:
 	@echo '              a loopback cable, recheck the main firmware, and write hwtest/results/<time>/report.md.'
 	@echo 'make hwtest-sim Run the hardware suite against a simulated loopback (no board).'
 	@echo 'make monitor  Open USB serial in screen (optional PORT=/dev/cu.usbmodem... or /dev/ttyACM...).'
-	@echo 'make format   Format C/C++ files under src/ using .clang-format.'
+	@echo 'make check    Run everything CI runs: both firmware builds, the host tests, the format check and hwtest-sim.'
+	@echo 'make format   Format C/C++ files under src/ and tests/ using .clang-format.'
+	@echo 'make format-check Fail if any C/C++ file under src/ or tests/ is not formatted.'
 	@echo 'make compiledb Generate compile_commands.json for clangd without building.'
 	@echo 'make clean    Remove firmware and libDaisy build outputs.'

@@ -123,9 +123,7 @@ int main(int argc, char **argv) {
         NamProcessor processor;
         for (int max_block_size : {1, 17, 48, 256}) {
             assert(processor.SetModel(CreateAmpModel(amp), 48000, max_block_size));
-            const ReferenceError result = ExpectMatchesReference(reference, max_block_size, [&](const float *input, float *output, int frames) {
-                assert(processor.Process(input, output, frames));
-            });
+            const ReferenceError result = ExpectMatchesReference(reference, max_block_size, [&](const float *input, float *output, int frames) { assert(processor.Process(input, output, frames)); });
             if (max_block_size == 48)
                 std::cout << AmpName(amp) << ": max error=" << result.maximum << " ESR=" << result.esr << std::endl;
         }

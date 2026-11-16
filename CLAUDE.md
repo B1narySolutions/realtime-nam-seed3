@@ -23,7 +23,8 @@ Run everything from the repository root.
 | `make upload` / `make monitor` | Flash over DFU (the running firmware reboots itself into DFU on `B`) and open the serial monitor; `PORT=/dev/cu.usbmodem…` picks a port |
 | `make hwtest` | Flash the test firmware (`src/hwtest/`, built by `make/hwtest.mk` into `build/hwtest-fw/`), measure through a line-out-to-input loopback cable, flash the main firmware back and check it, and write `hwtest/results/<run>/report.md`. `make hwtest-sim` runs the suite against a simulated loopback with no board. See `docs/hardware-tests.md` |
 | `make upload PROFILE=1` | Add per-layer DWT cycle counts to the serial output. Run `make clean` when toggling it, because objects don't track flags |
-| `make format` | clang-format `src/` and `tests/` |
+| `make check` | Everything CI runs: both firmware builds, `make test`, `make format-check` and `make hwtest-sim`. Run it before calling a change done |
+| `make format` / `make format-check` | clang-format `src/` and `tests/`, or fail if anything is unformatted |
 | `make compiledb` | Generate `compile_commands.json` for clangd |
 
 Running a single host test (these are targets in `tests/Makefile`, which is run from the root):
@@ -35,6 +36,17 @@ python3 -B tests/test_convert_a2.py   # converter only
 ```
 
 Without the downloaded models, `make test` runs only `nam_processor_test`, `cab_filter_test` and `output_controls_test` and says what it skipped.
+
+## Enforced checks
+
+CI (`.github/workflows/ci.yml`) runs `make check` on every push to `main` and every pull request. A rule that a check enforces is listed here; the rest of this file is guidance a check can't cover.
+
+- Our own C++ builds with `-Wall -Wextra -Werror` (`make/warnings.mk`). The firmware builds add `-Wdouble-promotion -Wfloat-conversion`, so float math that silently becomes double is an error. Fix a warning; don't silence it.
+- The host tests assert that processing allocates nothing, through `tests/allocation_guard.h`, which counts every form of `operator new`. Any new processing path gets the same assert.
+- The engine must stay within `make test` tolerance of upstream NAM on all five amps.
+- Every C/C++ file under `src/` and `tests/` must be clang-formatted, with the version CI pins (`CLANG_FORMAT_VERSION` in the `Makefile`).
+
+When a review keeps catching the same mistake, prefer adding a check here over adding a rule below.
 
 ## Architecture
 
@@ -81,4 +93,4 @@ This code is presented and open-sourced, so comments are for a reader seeing it 
 - Keep comments that explain why (a measured trade-off, a hardware constraint, an ownership rule). Don't delete existing ones when adding step labels.
 - Avoid trailing comments that restate the code (`kSampleRate = 48000.0; // Hz.`) and comments that only repeat a function's name.
 - Be careful with precise behavioral claims ("only applied when…", "nothing is copied", "true once…"). These are where comments have gone wrong here. Check each against the code, including bypass and failure paths.
-- Comment-only changes must not change code. Verify that `git diff` has only comment and blank lines, that `clang-format` is clean, and that `make test` passes.
+- Comment-only changes must not change code. Verify that `git diff` has only comment and blank lines and that `make check` passes.
