@@ -26,7 +26,7 @@ class CabFilter {
 
     // Filters samples in place. Never allocates, and the result does not
     // depend on how the stream is split into blocks.
-    void Process(float *samples, std::size_t frame_count);
+    void Process(float *samples, std::size_t frame_count) noexcept;
 
   private:
     // Transposed direct form II state, one pair per stage.

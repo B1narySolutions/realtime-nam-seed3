@@ -37,7 +37,7 @@ bool NamProcessor::SetModel(std::unique_ptr<AmpModel> model, double sample_rate_
     return true;
 }
 
-bool NamProcessor::Process(const float *input, float *output, std::size_t frame_count) {
+bool NamProcessor::Process(const float *input, float *output, std::size_t frame_count) noexcept {
     // Refuse unless a model is loaded and the buffers and block size are valid.
     if (!model_ || !input || !output || input == output || frame_count == 0 || frame_count > max_block_size_) {
         return false;

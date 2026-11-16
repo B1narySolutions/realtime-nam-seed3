@@ -3,6 +3,8 @@
 #include "models/a2_lite.h"
 #include <atomic>
 #include <cstdint>
+#include <cstdlib>
+#include <new>
 
 daisy::DaisySeed seed;
 static NamAudio audio;
@@ -16,6 +18,26 @@ static std::atomic<bool> bootloader_requested{false};
 static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio counters must be lock-free");
 // Only changed while audio is stopped.
 static bool bypass = false;
+
+// Process must never allocate (amp_model.h). The host tests check that; this
+// catches it on the board. The callback marks itself, operator new counts
+// what is allocated meanwhile, and the status report prints an error.
+static std::atomic<bool> in_audio_callback{false};
+static std::atomic<uint32_t> callback_allocations{0};
+
+// Replaces the standard operator new for the whole firmware, adding that
+// count. Like the toolchain's own, it aborts when malloc fails: newlib-nano's
+// libstdc++ is built without exceptions, so it never throws bad_alloc.
+void *operator new(std::size_t size) {
+    if (in_audio_callback.load(std::memory_order_relaxed))
+        callback_allocations.fetch_add(1, std::memory_order_relaxed);
+    void *p = std::malloc(size ? size : 1);
+    if (!p)
+        std::abort();
+    return p;
+}
+void operator delete(void *p) noexcept { std::free(p); }
+void operator delete(void *p, std::size_t) noexcept { std::free(p); }
 // ADC channels for the carrier board's pots: volume (RV2) on Daisy pin 22
 // (A0) and tone (RV3) on pin 23 (A1).
 enum Knob : uint8_t { kVolumeKnob, kToneKnob, kKnobCount };
@@ -41,6 +63,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer input_channels, daisy::AudioH
     // 240 MHz), so subtracting two GetUs() values across the wrap yields
     // garbage. Tick subtraction is exact modulo 2^32.
     const uint32_t start_tick = daisy::System::GetTick();
+    in_audio_callback.store(true, std::memory_order_relaxed);
 
     // Pass on the latest knob readings, which the ADC's DMA keeps current.
     audio.SetKnobs(seed.adc.GetFloat(kVolumeKnob), seed.adc.GetFloat(kToneKnob));
@@ -49,6 +72,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer input_channels, daisy::AudioH
     audio.Process(input_channels[0], output_channels[0], output_channels[1], frame_count, bypass);
 
     // Record how long the block took.
+    in_audio_callback.store(false, std::memory_order_relaxed);
     const uint32_t elapsed_ticks = daisy::System::GetTick() - start_tick;
     RecordCallbackTiming(elapsed_ticks / ticks_per_us);
 }
@@ -264,6 +288,10 @@ static void ReportStatus(AppState &state) {
     const char *cabinet = !active ? "-" : audio.CabinetEnabled() ? "on" : "off";
     seed.PrintLine("[%-6s %-22s]  cab %-3s  avg %3lu%% (%4lu us)  peak %3lu%% (%4lu us)  headroom %5ld us  blocks %4lu  overruns %lu%s", mode, active ? AmpName(state.selected_amp) : "-", cabinet, static_cast<unsigned long>(avg_pct), static_cast<unsigned long>(avg_us), static_cast<unsigned long>(peak_pct), static_cast<unsigned long>(max_us), static_cast<long>(headroom_us), static_cast<unsigned long>(callbacks), static_cast<unsigned long>(overrun_count), overrun_count ? "  <-- OVERRUN" : "");
     ReportKnobs(state);
+
+    // An allocation in the callback is a bug; hwtest fails a run that shows one.
+    if (const uint32_t allocations = callback_allocations.exchange(0))
+        seed.PrintLine("ERROR: %lu allocations in the audio callback", static_cast<unsigned long>(allocations));
 #ifdef A2_LITE_PROFILE
     state.profile_blocks += callbacks;
     if (state.report_count % 5 == 0)

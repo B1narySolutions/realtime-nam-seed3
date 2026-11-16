@@ -61,7 +61,7 @@ class A2Lite final : public AmpModel {
     explicit A2Lite(const float *weights);
     double SampleRate() const override { return 48000.0; }
     void Reset(int max_block_size) override;
-    void Process(const float *input, float *output, int frame_count) override;
+    void Process(const float *input, float *output, int frame_count) noexcept override;
 
   private:
     // Ring of `period` interleaved [frame][kChannels] frames. Frames

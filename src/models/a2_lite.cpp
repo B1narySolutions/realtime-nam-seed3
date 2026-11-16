@@ -45,7 +45,7 @@ void A2Lite::DelayLine::Resize(int context_frames, int max_block_size, int read_
 
 void A2Lite::DelayLine::Fill(const float *frame) {
     for (std::size_t i = 0; i < samples.size(); i += kChannels)
-        std::copy(frame, frame + kChannels, &samples[i]);
+        std::copy(frame, frame + kChannels, &samples[i]); // check-patterns: allow mem-copy: a memmove call, but Fill runs only from Prewarm in Reset, never per block.
 }
 
 void A2Lite::DelayLine::Store(int index, const float *frames, int frame_count) {
@@ -299,7 +299,7 @@ void A2Lite::ProcessHead(float *output, int frame_count) {
         output[t] *= scale;
 }
 
-void A2Lite::Process(const float *input, float *output, int frame_count) {
+void A2Lite::Process(const float *input, float *output, int frame_count) noexcept {
     A2_PROFILE_START;
     const float *x = input;
 
@@ -309,6 +309,7 @@ void A2Lite::Process(const float *input, float *output, int frame_count) {
             residual_[t * kChannels + channel] = input_projection_[channel] * x[t];
 
     // Clear the skip sum; every layer adds into it.
+    // check-patterns: allow mem-copy: with -fno-tree-loop-distribute-patterns this compiles to a plain loop, not a memset call.
     std::fill(skip_.begin(), skip_.begin() + static_cast<std::ptrdiff_t>(frame_count) * kChannels, 0.0f);
     A2_PROFILE_LAP(profile::input_cycles);
 

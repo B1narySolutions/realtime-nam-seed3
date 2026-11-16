@@ -9,9 +9,11 @@ SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
 APP_TYPE = BOOT_NONE
 include $(SYSTEM_FILES_DIR)/Makefile
 
-# Model buffers are heap-allocated; LoadAmpModel catches allocation failure
-# so audio still starts in bypass. Keep IEEE floating-point behavior until
-# model accuracy and target performance have been measured.
+# LoadAmpModel catches a failed load so audio still starts in bypass. On the
+# board that never covers running out of heap: newlib-nano's libstdc++ is
+# built without exceptions, so operator new (main.cpp) aborts instead of
+# throwing bad_alloc. Keep IEEE floating-point behavior until model accuracy
+# and target performance have been measured.
 CPPFLAGS += -fexceptions
 include make/warnings.mk
 CPPFLAGS += $(FIRMWARE_WARNINGS)

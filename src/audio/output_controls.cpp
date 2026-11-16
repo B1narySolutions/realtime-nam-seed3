@@ -78,7 +78,7 @@ void OutputControls::Reset() {
     stage2_ = 0.0f;
 }
 
-void OutputControls::Process(float *samples, std::size_t frame_count) {
+void OutputControls::Process(float *samples, std::size_t frame_count) noexcept {
     if (frame_count == 0)
         return;
 

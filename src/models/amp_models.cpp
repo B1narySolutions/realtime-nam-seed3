@@ -49,5 +49,6 @@ float AmpOutputGain(AmpId id) {
 
 std::unique_ptr<AmpModel> CreateAmpModel(AmpId id) {
     const auto *model = FindModel(id);
+    // check-patterns: allow heap: models are built on the load path, with audio stopped.
     return model ? std::make_unique<A2Lite>(model->weights) : nullptr;
 }

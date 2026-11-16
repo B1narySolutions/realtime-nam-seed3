@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := build
 JOBS ?= 4
 
-.PHONY: install download-models build model upload program-dfu monitor format format-check check compiledb test viz viz-docs hwtest hwtest-build hwtest-upload hwtest-sim clean help
+.PHONY: install download-models build model upload program-dfu monitor format format-check check check-patterns check-size check-comment-only update-engine-digests compiledb test viz viz-docs hwtest hwtest-build hwtest-upload hwtest-sim clean help
 install:
 	bash scripts/install.sh
 
@@ -27,6 +27,11 @@ monitor:
 test:
 	@test -f libs/NeuralAmpModelerCore/Dependencies/eigen/Eigen/Core || { echo 'Missing NAM Core (the test reference); run make install.'; exit 1; }
 	$(MAKE) -f tests/Makefile test
+
+# Save the engine's current output as the bit-identical reference
+# (tests/engine_digests.txt). Only for a change meant to alter the output.
+update-engine-digests:
+	$(MAKE) -f tests/Makefile update-engine-digests
 
 viz:
 	@test -f libs/NeuralAmpModelerCore/Dependencies/eigen/Eigen/Core || { echo 'Missing NAM Core (the accuracy reference); run make install.'; exit 1; }
@@ -92,9 +97,23 @@ format-check:
 	@clang-format --version | grep -q ' $(CLANG_FORMAT_VERSION)' || echo 'Note: CI uses clang-format $(CLANG_FORMAT_VERSION); yours may format differently.' >&2
 	$(FORMAT_SOURCES) -exec clang-format --dry-run -Werror --style=file {} +
 
+# Code patterns ruled out in the audio and model code (scripts/check_patterns.py).
+check-patterns:
+	python3 -B scripts/check_patterns.py
+
+# Flash and static RAM against make/size_limits.json. Needs both firmware builds.
+check-size:
+	python3 -B scripts/check_size.py
+
+# For a change meant to touch comments only: both firmware images must be
+# byte-identical to BASE's. CI runs it on pull requests labeled comment-only.
+BASE ?= origin/main
+check-comment-only:
+	bash scripts/check_comment_only.sh $(BASE)
+
 # Everything CI runs, in the same order (.github/workflows/ci.yml). Needs
 # make install and make download-models first.
-check: build hwtest-build test format-check hwtest-sim
+check: build hwtest-build check-size test format-check check-patterns hwtest-sim
 
 clean:
 	rm -rf build

@@ -26,7 +26,7 @@ class NamProcessor {
     // Returns false without writing output if unprepared or arguments invalid.
     // No wrapper allocations; model runtime behavior must be validated
     // separately.
-    bool Process(const float *input, float *output, std::size_t frame_count);
+    bool Process(const float *input, float *output, std::size_t frame_count) noexcept;
 
   private:
     std::unique_ptr<AmpModel> model_;

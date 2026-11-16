@@ -1,0 +1,5 @@
+Fender Twin65	78bf063c1142f73f	ca240debaadeb6e2
+Vox AC30 Chimey	0e5f04085b6ef8ae	eeaae08af3060e20
+Marshall JCM800 G5	a68b94303890c781	e969fc3ffd9c233c
+Fender Princeton65 EOB	d3c1831b52c0c6df	7aa1ad7aaefdc8f6
+Randall Satan 50	7dc9e761d386612f	31d3d33a59191a60

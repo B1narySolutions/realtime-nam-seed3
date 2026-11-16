@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 # A new push to a branch cancels that branch's run still in progress.
 concurrency:
@@ -18,17 +19,45 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      # Full history, so a comment-only pull request can build its base.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Build with the toolchain the firmware ships with, Arm GNU Toolchain
+      # 15.3.Rel1. Ubuntu's own arm-none-eabi-gcc is 13.2, whose firmware is
+      # about 4 KB bigger: too close to the 128 KB of flash for the budgets in
+      # make/size_limits.json to mean the same thing here and on the desk.
+      - name: Cache the Arm toolchain
+        id: arm-toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/arm-gnu-toolchain
+          key: arm-gnu-toolchain-15.3.rel1-x86_64
+
+      - name: Download the Arm toolchain
+        if: steps.arm-toolchain.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL --retry 3 -o /tmp/arm-gnu-toolchain.tar.xz "https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel1/arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz"
+          echo "563bebb2b97d53382b956d6ee1fe61e2cae26699901417234a37df505ef9b5fa  /tmp/arm-gnu-toolchain.tar.xz" | sha256sum -c -
+          mkdir -p ~/arm-gnu-toolchain
+          tar -xJf /tmp/arm-gnu-toolchain.tar.xz -C ~/arm-gnu-toolchain --strip-components=1
+
+      # Ahead of the apt compiler that install.sh still installs.
+      - name: Put the Arm toolchain on PATH
+        run: echo "$HOME/arm-gnu-toolchain/bin" >> "$GITHUB_PATH"
 
       # libs/ holds the pinned libDaisy and NAM Core checkouts and the
-      # libDaisy build. install.sh holds the pins, so it is the cache key.
+      # libDaisy build, so the key covers the pins and the compiler.
       - uses: actions/cache@v4
         with:
           path: libs
-          key: libs-${{ runner.os }}-${{ hashFiles('scripts/install.sh') }}
+          key: libs-${{ runner.os }}-arm-15.3.rel1-${{ hashFiles('scripts/install.sh') }}
 
-      - name: Install the toolchain and pinned dependencies
-        run: bash scripts/install.sh
+      - name: Install the pinned dependencies
+        run: |
+          bash scripts/install.sh
+          arm-none-eabi-g++ --version | grep -q ' 15\.3\.1 ' || { echo "PATH finds $(command -v arm-none-eabi-g++), not 15.3.1" >&2; exit 1; }
 
       # Same version as the Makefile's CLANG_FORMAT_VERSION. The runner image
       # has its own clang-format, so check which one PATH finds.
@@ -44,3 +73,7 @@ jobs:
 
       - name: make check
         run: make check
+
+      - name: Comment-only change builds identical firmware
+        if: contains(github.event.pull_request.labels.*.name, 'comment-only')
+        run: make check-comment-only BASE=origin/${{ github.base_ref }}

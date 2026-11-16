@@ -88,7 +88,7 @@ void CabFilter::Reset() {
         state = {};
 }
 
-void CabFilter::Process(float *samples, std::size_t frame_count) {
+void CabFilter::Process(float *samples, std::size_t frame_count) noexcept {
     for (std::size_t s = 0; s < kStages; ++s) {
         // One stage at a time over the whole block, keeping its coefficients
         // and state in registers for the inner loop.

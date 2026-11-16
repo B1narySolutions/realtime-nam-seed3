@@ -23,7 +23,9 @@ Run everything from the repository root.
 | `make upload` / `make monitor` | Flash over DFU (the running firmware reboots itself into DFU on `B`) and open the serial monitor; `PORT=/dev/cu.usbmodem…` picks a port |
 | `make hwtest` | Flash the test firmware (`src/hwtest/`, built by `make/hwtest.mk` into `build/hwtest-fw/`), measure through a line-out-to-input loopback cable, flash the main firmware back and check it, and write `hwtest/results/<run>/report.md`. `make hwtest-sim` runs the suite against a simulated loopback with no board. See `docs/hardware-tests.md` |
 | `make upload PROFILE=1` | Add per-layer DWT cycle counts to the serial output. Run `make clean` when toggling it, because objects don't track flags |
-| `make check` | Everything CI runs: both firmware builds, `make test`, `make format-check` and `make hwtest-sim`. Run it before calling a change done |
+| `make check` | Everything CI runs: both firmware builds, `make check-size`, `make test`, `make format-check`, `make check-patterns` and `make hwtest-sim`. Run it before calling a change done |
+| `make check-comment-only` | For a change meant to touch comments only: both firmware images must be byte-identical to `BASE` (default `origin/main`) |
+| `make update-engine-digests` | Save the engine's current output as the bit-identical reference, for a change meant to alter it |
 | `make format` / `make format-check` | clang-format `src/` and `tests/`, or fail if anything is unformatted |
 | `make compiledb` | Generate `compile_commands.json` for clangd |
 
@@ -35,16 +37,21 @@ make -f tests/Makefile test-a2        # A2-Lite vs upstream NAM, per model
 python3 -B tests/test_convert_a2.py   # converter only
 ```
 
-Without the downloaded models, `make test` runs only `nam_processor_test`, `cab_filter_test` and `output_controls_test` and says what it skipped.
+Without the downloaded models, `make test` runs only `nam_processor_test`, `cab_filter_test`, `output_controls_test` and the pattern checker's tests, and says what it skipped.
 
 ## Enforced checks
 
 CI (`.github/workflows/ci.yml`) runs `make check` on every push to `main` and every pull request. A rule that a check enforces is listed here; the rest of this file is guidance a check can't cover.
 
-- Our own C++ builds with `-Wall -Wextra -Werror` (`make/warnings.mk`). The firmware builds add `-Wdouble-promotion -Wfloat-conversion`, so float math that silently becomes double is an error. Fix a warning; don't silence it.
-- The host tests assert that processing allocates nothing, through `tests/allocation_guard.h`, which counts every form of `operator new`. Any new processing path gets the same assert.
-- The engine must stay within `make test` tolerance of upstream NAM on all five amps.
-- Every C/C++ file under `src/` and `tests/` must be clang-formatted, with the version CI pins (`CLANG_FORMAT_VERSION` in the `Makefile`).
+- **Warnings are errors.** Our own C++ builds with `-Wall -Wextra -Werror` (`make/warnings.mk`). The firmware builds add `-Wdouble-promotion -Wfloat-conversion`, so float math that silently becomes double is an error. Fix a warning; don't silence it.
+- **Bit-identical engine.** `engine_digest_test` compares every output bit, per amp and through the whole audio path, with `tests/engine_digests.txt`. Run `make update-engine-digests` only for a change meant to alter the output, and say why in the commit.
+- **Accuracy.** The engine must stay within `make test` tolerance of upstream NAM on all five amps.
+- **No allocation while processing.** The host tests assert it through `tests/allocation_guard.h`, which counts every form of `operator new`; any new processing path gets the same assert. Every `Process` is `noexcept`. On the board, `main.cpp`'s `operator new` counts allocations made during the audio callback, and `make hwtest` fails a run that reports one.
+- **Memory budgets.** `make check-size` holds flash and static RAM to `make/size_limits.json`. `a2_test` holds each model's heap to `kModelHeapBudget`. Raise a budget only in the change that needs it, with the reason.
+- **Banned patterns.** `make check-patterns` (`scripts/check_patterns.py`) rejects `memcpy`/`memset`/`std::copy`/`std::fill`, libm calls and heap allocation in `src/audio/` and `src/models/`, and relaxed float flags in the build files. A deliberate use carries a `// check-patterns: allow <rule>: <reason>` marker.
+- **Formatting.** Every C/C++ file under `src/` and `tests/` must be clang-formatted, with the version CI pins (`CLANG_FORMAT_VERSION` in the `Makefile`).
+- **Comment-only changes.** On a pull request labeled `comment-only`, CI also runs `make check-comment-only`.
+- **Merging.** `main` requires CI's `check` job to pass, admins included.
 
 When a review keeps catching the same mistake, prefer adding a check here over adding a rule below.
 
@@ -52,13 +59,13 @@ When a review keeps catching the same mistake, prefer adding a check here over a
 
 Signal path, top to bottom:
 
-- `src/main.cpp`: hardware init (including the ADC for the carrier board's volume and tone pots on `A0`/`A1`), the audio callback (passes on the knob readings, times every block and counts overruns), a USB receive interrupt that only records a key into atomics, and a main loop that applies model switches, prints a status line once a second and handles the DFU reboot. Model switches stop audio, load, then restart it. Nothing allocates in the interrupt or the audio callback.
-- `src/audio/nam_audio.*`: `NamAudio` takes the left input to both outputs, sanitizes NaN/inf, scales the model's input and output by the amp's trims, applies output gain and clamp, and handles bypass (which skips the model and its trims entirely). `LoadAmpModel` frees the old model before building the next, because the delay lines take much of SRAM. A failed load leaves audio in bypass.
+- `src/main.cpp`: hardware init (including the ADC for the carrier board's volume and tone pots on `A0`/`A1`), the audio callback (passes on the knob readings, times every block and counts overruns), a USB receive interrupt that only records a key into atomics, and a main loop that applies model switches, prints a status line once a second and handles the DFU reboot. Model switches stop audio, load, then restart it. Nothing allocates in the interrupt or the audio callback; the file's `operator new` counts any allocation during the callback, and the status report prints an `ERROR:` line for it.
+- `src/audio/nam_audio.*`: `NamAudio` takes the left input to both outputs, sanitizes NaN/inf, scales the model's input and output by the amp's trims, applies output gain and clamp, and handles bypass (which skips the model and its trims entirely). `LoadAmpModel` frees the old model before building the next, because the delay lines take much of SRAM. A failed load leaves audio in bypass, except running out of heap on the board, which aborts: newlib-nano's libstdc++ can't throw `bad_alloc`.
 - `src/audio/cab_filter.*`: `CabFilter`, a fixed six-biquad speaker EQ that `NamAudio` runs on the model's output (never in bypass). Each amp load turns it on, or off for an amp whose `includes_cabinet` is set in `models/amps.json`, and `C` toggles it. Its coefficients are designed at compile time with constexpr Taylor series (`constexpr_math.h`) so the firmware doesn't link libm's `sin`/`cos`/`pow` (about 13 KB of flash).
 - `src/audio/output_controls.*`: `OutputControls`, the volume and tone knobs, which `NamAudio` applies to its final output (in bypass too). Volume is a cubic audio taper; tone is two one-pole low-passes whose coefficient is interpolated from a compile-time table that ends in an exact pass-through. Knob moves glide with a 20 ms time constant.
 - `src/audio/constexpr_math.h`: the compile-time Taylor series both filters use for their designs.
 - `src/audio/nam_processor.*`: `NamProcessor` owns one `AmpModel`, validates the sample rate and block size, and commits a new model only after `Reset` succeeds.
-- `src/models/amp_model.h`: the `AmpModel` interface. `Reset` may allocate and throw; `Process` must never allocate.
+- `src/models/amp_model.h`: the `AmpModel` interface. `Reset` may allocate and throw; `Process` is `noexcept` and must never allocate.
 - `src/models/a2_lite.*`: the hand-written, fixed-shape A2-Lite WaveNet, the performance-critical code.
 - `src/models/amp_models.*`: `AmpId` and the factory over the embedded weights.
 
@@ -80,9 +87,8 @@ The model weights are T3K-licensed: never commit `models/local/` or firmware bin
 
 `docs/performance.md` is the ledger of measured speedups and rejected experiments. Read it before optimizing, and add a row for any change you measure. Key constraints:
 
-- Changes to the engine are expected to be bit-identical to the previous engine and to stay within `make test` tolerance against upstream NAM.
-- `a2_lite.o` is built with `-fno-tree-loop-distribute-patterns` because newlib-nano's `memcpy`/`memset` copy one byte at a time. Don't reintroduce `std::copy`/`std::fill`/`memcpy` in hot paths without measuring.
-- Keep IEEE float behavior (no `-ffast-math`); relaxed flags are an unmeasured idea that gives up bit-exactness.
+- Bit-exactness, accuracy, the `memcpy` family and relaxed float flags are enforced (see Enforced checks). The `memcpy` rule exists because newlib-nano's `memcpy`/`memset` copy one byte at a time, which is also why `a2_lite.o` is built with `-fno-tree-loop-distribute-patterns`. Before allowing one, check the object file for a library call.
+- The digests describe the host build, which turns off multiply-add fusion; the firmware's compiler fuses them, so its bits differ from the host's. Timing still needs the board.
 - Timing differences of a few microseconds can come from code placement in flash. Confirm with a non-profiling build on hardware; only the serial status line on a real Seed counts as a measurement.
 
 ## Code comments
@@ -93,4 +99,4 @@ This code is presented and open-sourced, so comments are for a reader seeing it 
 - Keep comments that explain why (a measured trade-off, a hardware constraint, an ownership rule). Don't delete existing ones when adding step labels.
 - Avoid trailing comments that restate the code (`kSampleRate = 48000.0; // Hz.`) and comments that only repeat a function's name.
 - Be careful with precise behavioral claims ("only applied when…", "nothing is copied", "true once…"). These are where comments have gone wrong here. Check each against the code, including bypass and failure paths.
-- Comment-only changes must not change code. Verify that `git diff` has only comment and blank lines and that `make check` passes.
+- Comment-only changes must not change code. Run `make check-comment-only` (or label the pull request `comment-only`) and `make check`.

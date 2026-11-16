@@ -61,6 +61,18 @@ template <typename Process> static ReferenceError ExpectMatchesReference(const s
     return {maximum, error / energy};
 }
 
+// A model's delay lines and scratch buffers are heap in the Seed's 512 KB
+// SRAM, beside the firmware's static use (budgeted in make/size_limits.json).
+// About 120 KB today; a bigger architecture should raise this deliberately.
+static constexpr std::size_t kModelHeapBudget = 128 * 1024;
+
+static void ExpectWithinHeapBudget(AmpId id) {
+    const std::size_t before = allocated_bytes;
+    auto model = CreateAmpModel(id);
+    model->Reset(48);
+    assert(allocated_bytes - before <= kModelHeapBudget);
+}
+
 // Reset must leave the model settled, so silence yields one constant output
 // from the first sample regardless of block size.
 static void ExpectSettledSilence(AmpId id) {
@@ -116,6 +128,7 @@ int main(int argc, char **argv) {
     for (int id = 1; id <= kAmpCount; ++id) {
         const AmpId amp = static_cast<AmpId>(id);
         const std::vector<float> reference = ReadReference(argv[id]);
+        ExpectWithinHeapBudget(amp);
         ExpectSettledSilence(amp);
         ExpectFiniteOnLoudInput(amp);
 

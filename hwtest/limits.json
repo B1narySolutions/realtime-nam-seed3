@@ -24,6 +24,7 @@
     {"name": "Main firmware: every amp loads", "path": "firmware.load_failures", "max": 0},
     {"name": "Main firmware: worst callback", "path": "firmware.max_peak_us", "max": 950, "unit": "us", "why": "The budget is 1000 us per 48-sample block"},
     {"name": "Main firmware: overruns", "path": "firmware.total_overruns", "max": 0},
+    {"name": "Main firmware: no allocations in the audio callback", "path": "firmware.callback_allocations", "max": 0, "why": "Process must never allocate; the firmware counts any allocation made during the callback"},
     {"name": "Main firmware: model switches", "path": "firmware.switch_failures", "max": 0}
   ]
 }
