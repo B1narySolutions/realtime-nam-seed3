@@ -8,6 +8,8 @@
 // Volatile because GCC 16 may assume operator new leaves globals alone and
 // reuse a count read before the call; volatile reads always reload.
 static volatile std::size_t allocation_count = 0;
+// Total bytes requested, for tests that budget a model's memory.
+static volatile std::size_t allocated_bytes = 0;
 
 // GCC inlines these replacements, then sees free() on memory that came from
 // operator new and reports -Wmismatched-new-delete on every vector. The
@@ -19,6 +21,7 @@ static volatile std::size_t allocation_count = 0;
 // Every form of operator new below counts through this one function.
 static void *CountedAllocate(std::size_t size, std::size_t alignment) {
     allocation_count = allocation_count + 1;
+    allocated_bytes = allocated_bytes + size;
 
     // aligned_alloc needs the size to be a nonzero multiple of the alignment.
     void *p = alignment <= alignof(std::max_align_t) ? std::malloc(size ? size : 1) : std::aligned_alloc(alignment, (size ? size + alignment - 1 : alignment) / alignment * alignment);

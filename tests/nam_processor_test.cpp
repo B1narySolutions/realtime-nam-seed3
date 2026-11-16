@@ -15,7 +15,7 @@ class FakeModel : public AmpModel {
         ++resets;
         reset_block_size = max_block_size;
     }
-    void Process(const float *input, float *output, int frames) override { std::copy(input, input + frames, output); }
+    void Process(const float *input, float *output, int frames) noexcept override { std::copy(input, input + frames, output); }
     int resets = 0;
     int reset_block_size = 0;
 

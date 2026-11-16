@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 # A new push to a branch cancels that branch's run still in progress.
 concurrency:
@@ -18,7 +19,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      # Full history, so a comment-only pull request can build its base.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       # libs/ holds the pinned libDaisy and NAM Core checkouts and the
       # libDaisy build. install.sh holds the pins, so it is the cache key.
@@ -44,3 +48,7 @@ jobs:
 
       - name: make check
         run: make check
+
+      - name: Comment-only change builds identical firmware
+        if: contains(github.event.pull_request.labels.*.name, 'comment-only')
+        run: make check-comment-only BASE=origin/${{ github.base_ref }}

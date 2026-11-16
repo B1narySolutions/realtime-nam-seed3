@@ -26,7 +26,7 @@ class OutputControls {
 
     // Filters and scales samples in place. Never allocates. The volume ramps
     // sample by sample within a block; the tone corner moves once per block.
-    void Process(float *samples, std::size_t frame_count);
+    void Process(float *samples, std::size_t frame_count) noexcept;
 
   private:
     // Knob positions from the latest readings, and where the glide has got to.

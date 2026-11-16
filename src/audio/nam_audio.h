@@ -39,10 +39,10 @@ class NamAudio {
     // model's and cabinet's state stays where bypass began. The volume and
     // tone knobs apply either way. Buffers must contain at least
     // frame_count samples.
-    void Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model);
+    void Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model) noexcept;
 
   private:
-    bool ProcessModel(const float *input, std::size_t frame_count);
+    bool ProcessModel(const float *input, std::size_t frame_count) noexcept;
 
     NamProcessor processor_;
     bool ready_ = false;

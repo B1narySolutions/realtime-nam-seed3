@@ -1,0 +1,7 @@
+{
+  "_comment": "Size budgets in bytes, checked by scripts/check_size.py (make check-size). Each sits a little above use when it was set, so unplanned growth fails. Raise one in the change that needs it, and say why in the commit.",
+  "images": {
+    "build/passthrough.elf": {"FLASH": 126976, "SRAM": 65536, "RAM_D2": 32768},
+    "build/hwtest-fw/hwtest.elf": {"FLASH": 98304}
+  }
+}

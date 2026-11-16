@@ -7,6 +7,9 @@ import time
 
 STATUS = re.compile(r"\[(\w+)\s+(.*?)\s*\]\s+cab (\S+)\s+avg\s+(\d+)% \(\s*(\d+) us\)\s+peak\s+(\d+)% \(\s*(\d+) us\)\s+headroom\s+(-?\d+) us\s+blocks\s+(\d+)\s+overruns (\d+)")
 SWITCH = re.compile(r">>> (.*?) (loaded|FAILED to load)$|>>> bypass$")
+# Printed by the firmware's status report when something allocated in the
+# audio callback, which must never happen.
+CALLBACK_ALLOCATIONS = re.compile(r"ERROR: (\d+) allocations in the audio callback")
 
 
 class FirmwareConsole:
@@ -52,11 +55,13 @@ def run(port, log=print, seconds_per_amp=5, switches=30):
             if line is None:
                 amps.append({"key": key, "error": "no reply"})
                 continue
-            stats = [m for m in (STATUS.search(l) for l in console.lines(seconds_per_amp)) if m]
+            lines = list(console.lines(seconds_per_amp))
+            stats = [m for m in (STATUS.search(l) for l in lines) if m]
+            callback_allocations = sum(int(m.group(1)) for m in (CALLBACK_ALLOCATIONS.search(l) for l in lines) if m)
             # The first status line can include the block that loaded the model.
             stats = stats[1:] or stats
             match = SWITCH.search(line)
-            entry = {"key": key, "name": match.group(1) or "bypass", "loaded": "FAILED" not in line}
+            entry = {"key": key, "name": match.group(1) or "bypass", "loaded": "FAILED" not in line, "callback_allocations": callback_allocations}
             if stats:
                 entry.update({"avg_us": max(int(m.group(5)) for m in stats), "peak_us": max(int(m.group(7)) for m in stats), "headroom_us": min(int(m.group(8)) for m in stats), "overruns": sum(int(m.group(10)) for m in stats), "status_lines": len(stats)})
             log(f"  {entry.get('name', key)}: peak {entry.get('peak_us')} us, overruns {entry.get('overruns')}")
@@ -83,6 +88,7 @@ def run(port, log=print, seconds_per_amp=5, switches=30):
             "switch_seconds_mean": round(sum(times) / len(times), 3) if times else None,
             "max_peak_us": max((a.get("peak_us", 0) for a in amps), default=None),
             "total_overruns": sum(a.get("overruns", 0) for a in amps),
+            "callback_allocations": sum(a.get("callback_allocations", 0) for a in amps),
         }
     finally:
         console.close()

@@ -41,7 +41,7 @@ void NamAudio::SetCabinet(bool enabled) {
     cabinet_.Reset();
 }
 
-void NamAudio::Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model) {
+void NamAudio::Process(const float *input_left, float *output_left, float *output_right, std::size_t frame_count, bool bypass_model) noexcept {
     // Run the model, or pass the input through if bypassed, not loaded, or the block is too big.
     const bool processed = !bypass_model && ProcessModel(input_left, frame_count);
     const float *source = processed ? output_.data() : input_left;
@@ -67,7 +67,7 @@ void NamAudio::Process(const float *input_left, float *output_left, float *outpu
     }
 }
 
-bool NamAudio::ProcessModel(const float *input, std::size_t frame_count) {
+bool NamAudio::ProcessModel(const float *input, std::size_t frame_count) noexcept {
     if (!ready_ || frame_count > kBlockSize)
         return false;
 
