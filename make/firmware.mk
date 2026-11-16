@@ -13,6 +13,8 @@ include $(SYSTEM_FILES_DIR)/Makefile
 # so audio still starts in bypass. Keep IEEE floating-point behavior until
 # model accuracy and target performance have been measured.
 CPPFLAGS += -fexceptions
+include make/warnings.mk
+CPPFLAGS += $(FIRMWARE_WARNINGS)
 # nano.specs memcpy and memset copy one byte per iteration. Keep GCC from
 # turning A2-Lite's per-call weight copies and per-block fills into calls
 # to them; plain loops compile to word loads and stores.
@@ -25,13 +27,7 @@ CPPFLAGS += -DA2_LITE_PROFILE
 endif
 include make/models.mk
 
-# libDaisy's program-dfu, but dfu-util exits 74 after every good flash: the
-# STM32 resets on :leave before answering the final status request. Judge
-# success by the download completing instead.
-.PHONY: flash-dfu
-flash-dfu:
-	@dfu-util -a 0 -s $(FLASH_ADDRESS):leave -D $(BUILD_DIR)/$(TARGET_BIN) -d ,0483:$(USBPID) 2>&1 | tee $(BUILD_DIR)/dfu.log; \
-		grep -q 'File downloaded successfully' $(BUILD_DIR)/dfu.log || { echo 'DFU flash failed.' >&2; exit 1; }
+include make/flash_dfu.mk
 
 # Used in dry-run mode to generate clangd commands without requiring a link.
 .PHONY: compile-objects

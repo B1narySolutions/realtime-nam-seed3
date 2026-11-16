@@ -42,5 +42,16 @@
     "includes_cabinet": true,
     "input_trim_db": 0.0,
     "output_trim_db": -3.2
+  },
+  {
+    "amp_id": "Randall",
+    "name": "Randall Satan 50",
+    "file": "randall-satan50-a2-lite.nam",
+    "url": "https://api.tone3000.com/storage/v1/object/public/models/u1v57mquwic.nam",
+    "download_sha256": "bf08ee2837c56aa9e944fdfc2342c457f795cb821bc69fa7a3845c69244f9737",
+    "page": "https://www.tone3000.com/tones/real-olas-randall-satan-50-87919",
+    "includes_cabinet": true,
+    "input_trim_db": 0.0,
+    "output_trim_db": -3.8
   }
 ]

@@ -6,7 +6,8 @@ TEST_BIN = build/tests/nam_processor_test
 CAB_TEST_BIN = build/tests/cab_filter_test
 CONTROLS_TEST_BIN = build/tests/output_controls_test
 SOURCES = tests/nam_processor_test.cpp src/audio/nam_processor.cpp
-FLAGS = -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
+include make/warnings.mk
+FLAGS = -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer $(WARNINGS)
 INCLUDES = -Isrc -Itests
 include tests/a2.mk
 

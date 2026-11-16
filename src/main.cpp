@@ -56,10 +56,10 @@ void AudioCallback(daisy::AudioHandle::InputBuffer input_channels, daisy::AudioH
 // USB interrupt: record a command only. Never allocate or construct a model
 // here.
 void OnUsbReceive(uint8_t *data, uint32_t *byte_count) {
-    // '0'-'4' select bypass or an amp; 'C' toggles the cabinet; 'B' asks for
+    // '0'-'5' select bypass or an amp; 'C' toggles the cabinet; 'B' asks for
     // the DFU bootloader.
     for (uint32_t i = 0; i < *byte_count; ++i) {
-        if (data[i] >= '0' && data[i] <= '4')
+        if (data[i] >= '0' && data[i] <= '5')
             requested_amp.store(data[i] - '0', std::memory_order_relaxed);
         else if (data[i] == 'C' || data[i] == 'c')
             cabinet_toggle_requested.store(true, std::memory_order_relaxed);
@@ -140,7 +140,7 @@ static void ReportProfile(AppState &state) {
 }
 #endif
 
-static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 4=Princeton C=cab B=DFU ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
+static void PrintHeader() { seed.PrintLine("--- NAM A2-Lite | %lu-sample blocks @ 48 kHz | budget %lu us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 4=Princeton 5=Randall C=cab B=DFU ---", static_cast<unsigned long>(NamAudio::kBlockSize), static_cast<unsigned long>(kBlockBudgetUs)); }
 
 static void InitHardware() {
     seed.Init(true); // 480 MHz boost; the model needs the headroom.

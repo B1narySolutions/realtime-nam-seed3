@@ -30,7 +30,7 @@ REAMP = ROOT / "models" / "local" / "reamp_signal.wav"
 # Dark slide theme. Amp colors are the reference categorical palette's dark
 # steps, slots 1-4 (validated all-pairs on SURFACE), one per amp in AmpId
 # order; the rest are its dark chart tokens.
-AMP_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500"]
+AMP_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#9b6bd6"]
 SURFACE = "#1a1a19"
 CARD = "#232322"
 TEXT = "#ffffff"

@@ -1,8 +1,9 @@
 # NAM Seed3
 
-Neural amp modeling on the Daisy Seed3 using libDaisy, with four A2-Lite models:
-Fender '65 Twin Reverb, Vox AC30 Chimey, Marshall JCM800 (gain 5), and
-Fender '65 Princeton Reverb (edge of breakup, SM57).
+Neural amp modeling on the Daisy Seed3 using libDaisy, with five A2-Lite models:
+Fender '65 Twin Reverb, Vox AC30 Chimey, Marshall JCM800 (gain 5),
+Fender '65 Princeton Reverb (edge of breakup, SM57), and Randall Satan 50
+(Ola Englund's, mic'd center).
 
 This firmware is one part of a capstone project, a portable touchscreen practice
 guitar amp. The hardware it runs on is the carrier board in
@@ -24,7 +25,7 @@ make
 
 `make install` runs the same installer, and `make download-models` runs the
 download script. It installs the ARM compiler and DFU
-uploader, then fetches pinned versions of libDaisy and NAM Core. The download script saves the four
+uploader, then fetches pinned versions of libDaisy and NAM Core. The download script saves the five
 Tone3000 models to Git-ignored `models/local/`. The build embeds their weights
 in the firmware. On Linux, the installer also installs the build and download
 prerequisites, including the ARM C/C++ libraries, Python 3 and `screen`, and adds
@@ -52,7 +53,8 @@ to switch models or bypass; no Enter is needed:
 | `2` | Vox AC30 Chimey |
 | `3` | Marshall JCM800 (gain 5) |
 | `4` | Fender '65 Princeton Reverb (edge of breakup) |
-| `C` | Cabinet EQ on or off (each amp starts with it on, except the Princeton) |
+| `5` | Randall Satan 50 |
+| `C` | Cabinet EQ on or off (each amp starts with it on, except the Princeton and Randall) |
 | `B` | Reboot into DFU mode for flashing |
 
 Audio runs at 48 kHz, with the left input processed and sent to both outputs.
@@ -74,8 +76,8 @@ The Twin, AC30 and JCM800 models capture the amps alone, which sounds harsh
 without a speaker. A fixed cabinet EQ after the model stands in for one: it
 cuts below 75 Hz, adds a speaker resonance at 110 Hz and presence at 2.5 kHz,
 scoops 400 Hz, and rolls off at 24 dB/octave above 5 kHz. Press `C` to
-compare with the raw amp. Bypass skips the cabinet too. The Princeton capture
-already includes its mic'd 10-inch speaker, so it starts with the cabinet EQ
+compare with the raw amp. Bypass skips the cabinet too. The Princeton and Randall
+captures already include their mic'd speakers, so they start with the cabinet EQ
 off; `C` can still turn it on. Loading an amp, including leaving bypass,
 resets the cabinet to that amp's default. It is an EQ, not a measured
 cabinet impulse response.
@@ -94,7 +96,7 @@ Exit the monitor with **Ctrl-A**, then **K**, then **Y**.
 The firmware prints one status line per second:
 
 ```
---- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 4=Princeton C=cab B=DFU ---
+--- NAM A2-Lite | 48-sample blocks @ 48 kHz | budget 1000 us/block | keys: 0=bypass 1=Twin65 2=AC30 3=JCM800 4=Princeton 5=Randall C=cab B=DFU ---
 [active Fender Twin65          ]  cab on   avg  55% ( 552 us)  peak  56% ( 562 us)  headroom   438 us  blocks 1000  overruns 0
 >>> bypass
 [bypass -                      ]  cab -    avg   0% (   3 us)  peak   0% (   3 us)  headroom   997 us  blocks 1000  overruns 0
@@ -115,7 +117,7 @@ bypass, and cabinet toggles. A `>>> volume 75%  tone 100%` line gives the raw
 knob readings (percent of full travel) at startup and after either knob moves
 by 2% or more, checked once a second. Bypass skips the model and the cabinet (only the knobs act on the input), so the
 load drops to a few microseconds; leaving bypass reloads the selected model.
-All four models share one architecture and cost the same.
+All five models share one architecture and cost the same.
 
 ## Results
 
@@ -179,10 +181,11 @@ The same low-pass rounds the edges of a clipped waveform.
 
 | Command | Purpose |
 | --- | --- |
-| `make` | Build firmware and embed all four models. |
+| `make` | Build firmware and embed all five models. |
 | `make test` | Compare against upstream NAM and run sanitized host audio tests. |
 | `make viz` | Render the figures above to `build/viz/` (sets up `.venv/` on first run). |
 | `make viz-docs` | Render the figures and copy the ones above to `docs/images/`. |
+| `make hwtest` | Measure the board through a loopback cable (SNR, noise, distortion, response, latency, dropouts) and recheck the main firmware; see [docs/hardware-tests.md](docs/hardware-tests.md). |
 | `make clean` | Remove build outputs; keep downloaded models and dependencies. |
 | `make format` | Format C/C++ source in `src/` and `tests/`. |
 | `make compiledb` | Generate the clangd compilation database. |
