@@ -31,7 +31,9 @@ bool NamAudio::LoadAmpModel(AmpId amp) {
     try {
         ready_ = processor_.SetModel(CreateAmpModel(amp), kSampleRate, kBlockSize);
     } catch (...) {
-        // Allocation/construction failure must not prevent audio startup.
+        // Allocation/construction failure must not prevent audio startup. On
+        // the board, running out of heap aborts in operator new instead
+        // (main.cpp), so only the host build reaches this for that.
     }
     return ready_;
 }
