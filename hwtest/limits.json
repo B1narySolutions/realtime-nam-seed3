@@ -1,0 +1,29 @@
+{
+  "_comment": "Pass/fail limits for make hwtest. Provisional: the project spec sets no numbers, so these are reasonable targets for a 24-bit codec chain behind an analog front end. Tighten or loosen them once the first boards are measured. Each check names a value in results.json by its path.",
+  "checks": [
+    {"name": "Loopback cable found", "path": "tests.routing.loopback", "equals": true, "why": "Most tests need an output jack cabled to the input jack"},
+    {"name": "SDRAM self-test", "path": "device.sdram", "equals": "ok", "why": "Recordings are stored in SDRAM"},
+    {"name": "SNR, A-weighted", "path": "tests.tones.snr_a_db", "min": 90, "unit": "dB", "why": "Full-scale output over the idle noise floor"},
+    {"name": "SNR, unweighted 20 Hz-20 kHz", "path": "tests.tones.snr_db", "min": 85, "unit": "dB"},
+    {"name": "Dynamic range (AES17), A-weighted", "path": "tests.tones.dynamic_range_a_db", "min": 90, "unit": "dB"},
+    {"name": "THD+N at -1 dBFS", "path": "tests.tones.thdn_-1dBFS_db", "max": -70, "unit": "dB", "why": "-70 dB is 0.03 %"},
+    {"name": "Idle noise, A-weighted", "path": "tests.noise.noise_a_dbfs", "max": -90, "unit": "dBFS"},
+    {"name": "Mains hum", "path": "tests.noise.hum.level_dbfs", "max": -100, "unit": "dBFS"},
+    {"name": "DC offset at the input", "path": "tests.noise.dc_offset_fs", "abs_max": 0.01, "unit": "FS"},
+    {"name": "Noise increase under CPU load", "path": "tests.noise_load.increase_a_db", "max": 3, "unit": "dB", "why": "Digital activity coupling into the analog rails"},
+    {"name": "Crosstalk between outputs", "path": "tests.routing.crosstalk_db", "max": -60, "unit": "dB"},
+    {"name": "Gain linear from -60 to 0 dBFS", "path": "tests.linearity.gain_spread_db", "max": 0.5, "unit": "dB"},
+    {"name": "No clipping up to 0 dBFS out", "path": "tests.linearity.clipping_starts_dbfs", "equals": null},
+    {"name": "Response 40 Hz-15 kHz, low", "path": "tests.sweep.dev_40_15k_db.0", "min": -1, "unit": "dB"},
+    {"name": "Response 40 Hz-15 kHz, high", "path": "tests.sweep.dev_40_15k_db.1", "max": 1, "unit": "dB"},
+    {"name": "Round-trip latency", "path": "tests.sweep.latency_ms", "max": 5, "unit": "ms", "why": "Two 1 ms blocks plus the codec's filters; players notice from about 10 ms"},
+    {"name": "No dropouts in 12 s under load", "path": "tests.continuity.glitches", "max": 0},
+    {"name": "No overruns in the test firmware", "path": "tests.timing.overruns", "max": 0},
+    {"name": "Volume knob noise", "path": "tests.knobs.volume.peak_to_peak_percent", "max": 2, "unit": "% travel", "why": "The main firmware reports knob moves of 2 % or more"},
+    {"name": "Tone knob noise", "path": "tests.knobs.tone.peak_to_peak_percent", "max": 2, "unit": "% travel"},
+    {"name": "Main firmware: every amp loads", "path": "firmware.load_failures", "max": 0},
+    {"name": "Main firmware: worst callback", "path": "firmware.max_peak_us", "max": 950, "unit": "us", "why": "The budget is 1000 us per 48-sample block"},
+    {"name": "Main firmware: overruns", "path": "firmware.total_overruns", "max": 0},
+    {"name": "Main firmware: model switches", "path": "firmware.switch_failures", "max": 0}
+  ]
+}

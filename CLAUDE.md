@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Neural amp modeling firmware for the Daisy Seed (STM32H7, Cortex-M7 at 480 MHz) using libDaisy. It runs four A2-Lite NAM models (Fender Twin65, Vox AC30, Marshall JCM800, Fender Princeton65) at 48 kHz with 48-sample blocks, giving a hard budget of 1000 us per audio callback.
+Neural amp modeling firmware for the Daisy Seed (STM32H7, Cortex-M7 at 480 MHz) using libDaisy. It runs five A2-Lite NAM models (Fender Twin65, Vox AC30, Marshall JCM800, Fender Princeton65, Randall Satan 50) at 48 kHz with 48-sample blocks, giving a hard budget of 1000 us per audio callback.
 
 ## Project context
 
@@ -15,12 +15,13 @@ Run everything from the repository root.
 | Command | Purpose |
 | --- | --- |
 | `bash scripts/install.sh` (or `make install`) | Install the ARM toolchain and dfu-util, and fetch pinned libDaisy and NeuralAmpModelerCore into `libs/` |
-| `bash scripts/download_models.sh` (or `make download-models`) | Download the four `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
-| `make` | Build libDaisy (`-Os`) and the firmware (`-O3`), embedding all four models |
+| `bash scripts/download_models.sh` (or `make download-models`) | Download the five `.nam` models into Git-ignored `models/local/` (required for the build and most tests) |
+| `make` | Build libDaisy (`-Os`) and the firmware (`-O3`), embedding all five models |
 | `make test` | Host tests with ASan/UBSan: upstream NAM comparison, processor, cabinet, output controls, audio path, converter |
 | `make viz` | Render presentation figures (engine vs upstream accuracy, amp comparisons, the cabinet EQ) to `build/viz/`, creating `.venv/` from `viz/requirements.txt` |
 | `make viz-docs` | `make viz`, then copy the README's figures (all but the stats slide) to `docs/images/`. Rerun after changing the engine or `viz/figures.py` |
 | `make upload` / `make monitor` | Flash over DFU (the running firmware reboots itself into DFU on `B`) and open the serial monitor; `PORT=/dev/cu.usbmodem…` picks a port |
+| `make hwtest` | Flash the test firmware (`src/hwtest/`, built by `make/hwtest.mk` into `build/hwtest-fw/`), measure through a line-out-to-input loopback cable, flash the main firmware back and check it, and write `hwtest/results/<run>/report.md`. `make hwtest-sim` runs the suite against a simulated loopback with no board. See `docs/hardware-tests.md` |
 | `make upload PROFILE=1` | Add per-layer DWT cycle counts to the serial output. Run `make clean` when toggling it, because objects don't track flags |
 | `make format` | clang-format `src/` and `tests/` |
 | `make compiledb` | Generate `compile_commands.json` for clangd |

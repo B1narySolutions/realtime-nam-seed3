@@ -5,8 +5,8 @@
 
 // Values match the USB amp-selection commands. models/amps.json lists the
 // models in this order; the build fails if they disagree.
-enum class AmpId { Fender = 1, Vox = 2, Marshall = 3, Princeton = 4 };
-inline constexpr int kAmpCount = 4;
+enum class AmpId { Fender = 1, Vox = 2, Marshall = 3, Princeton = 4, Randall = 5 };
+inline constexpr int kAmpCount = 5;
 
 // Display name for the serial status line, or "invalid" for an unknown amp.
 const char *AmpName(AmpId id);
