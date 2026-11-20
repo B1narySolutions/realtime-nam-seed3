@@ -1,0 +1,656 @@
+{
+  "meta": {
+    "label": "rev1-board1",
+    "notes": "",
+    "started": "2026-11-17T14:08:47",
+    "git": "021e285",
+    "simulated": false,
+    "port": "/dev/cu.usbmodem355F337734331"
+  },
+  "device": {
+    "proto": "1",
+    "board": "0",
+    "sr": "48000",
+    "block": "48",
+    "maxframes": "960000",
+    "sdram": "ok",
+    "sdram_fail_word": "-1",
+    "sysclk_mhz": "480"
+  },
+  "tests": {
+    "routing": {
+      "loopback": true,
+      "output": "L",
+      "input": "L",
+      "in_channel": 0,
+      "loop_gain_db": -0.61,
+      "crosstalk_db": -97.1,
+      "gain_matrix_db": {
+        "outL_to_inL": -0.6,
+        "outL_to_inR": -81.2,
+        "outR_to_inL": -97.7,
+        "outR_to_inR": -115.5
+      }
+    },
+    "noise": {
+      "load_percent": 0,
+      "noise_dbfs": -96.9,
+      "noise_a_dbfs": -100.2,
+      "dc_offset_fs": -9e-06,
+      "hum": {
+        "freq_hz": 100.0,
+        "level_dbfs": -109.1
+      },
+      "spurs": [
+        {
+          "freq_hz": 169.9,
+          "level_dbfs": -108.4,
+          "above_floor_db": 12.0
+        },
+        {
+          "freq_hz": 5997.1,
+          "level_dbfs": -113.5,
+          "above_floor_db": 19.3
+        },
+        {
+          "freq_hz": 6999.0,
+          "level_dbfs": -114.2,
+          "above_floor_db": 19.3
+        },
+        {
+          "freq_hz": 4998.0,
+          "level_dbfs": -114.3,
+          "above_floor_db": 18.2
+        },
+        {
+          "freq_hz": 3999.0,
+          "level_dbfs": -114.9,
+          "above_floor_db": 17.3
+        },
+        {
+          "freq_hz": 7998.0,
+          "level_dbfs": -115.1,
+          "above_floor_db": 18.7
+        },
+        {
+          "freq_hz": 8997.1,
+          "level_dbfs": -115.8,
+          "above_floor_db": 17.4
+        },
+        {
+          "freq_hz": 3000.0,
+          "level_dbfs": -116.2,
+          "above_floor_db": 15.2
+        }
+      ],
+      "other_input_noise_a_dbfs": -100.0
+    },
+    "noise_load": {
+      "load_percent": 80,
+      "noise_dbfs": -96.2,
+      "noise_a_dbfs": -100.1,
+      "dc_offset_fs": -1e-06,
+      "hum": {
+        "freq_hz": 100.0,
+        "level_dbfs": -108.5
+      },
+      "spurs": [
+        {
+          "freq_hz": 6000.0,
+          "level_dbfs": -113.6,
+          "above_floor_db": 19.8
+        },
+        {
+          "freq_hz": 4998.0,
+          "level_dbfs": -113.8,
+          "above_floor_db": 19.2
+        },
+        {
+          "freq_hz": 6999.0,
+          "level_dbfs": -113.8,
+          "above_floor_db": 19.4
+        },
+        {
+          "freq_hz": 3999.0,
+          "level_dbfs": -114.5,
+          "above_floor_db": 17.7
+        },
+        {
+          "freq_hz": 7998.0,
+          "level_dbfs": -114.9,
+          "above_floor_db": 18.2
+        },
+        {
+          "freq_hz": 3000.0,
+          "level_dbfs": -116.1,
+          "above_floor_db": 15.8
+        },
+        {
+          "freq_hz": 8997.1,
+          "level_dbfs": -116.3,
+          "above_floor_db": 17.9
+        },
+        {
+          "freq_hz": 2001.0,
+          "level_dbfs": -117.6,
+          "above_floor_db": 13.6
+        }
+      ],
+      "other_input_noise_a_dbfs": -100.0,
+      "increase_a_db": 0.1
+    },
+    "tones": {
+      "full_scale_out_at_input_dbfs": -0.75,
+      "snr_db": 96.1,
+      "snr_a_db": 99.4,
+      "dynamic_range_a_db": 99.6,
+      "thdn_-1dBFS_db": -29.6,
+      "thdn_-1dBFS_percent": 3.2941,
+      "thd_-1dBFS_db": -29.7,
+      "harmonics_-1dBFS_dbc": [
+        -34.7,
+        -35.6,
+        -37.0,
+        -38.9,
+        -41.4
+      ]
+    },
+    "linearity": {
+      "rows": [
+        {
+          "out_dbfs": -60.0,
+          "in_dbfs": -60.52,
+          "gain_db": -0.52,
+          "thdn_db": -36.4,
+          "thd_db": -47.0
+        },
+        {
+          "out_dbfs": -57.0,
+          "in_dbfs": -57.52,
+          "gain_db": -0.52,
+          "thdn_db": -38.9,
+          "thd_db": -49.2
+        },
+        {
+          "out_dbfs": -54.0,
+          "in_dbfs": -54.51,
+          "gain_db": -0.51,
+          "thdn_db": -42.2,
+          "thd_db": -52.9
+        },
+        {
+          "out_dbfs": -51.0,
+          "in_dbfs": -51.51,
+          "gain_db": -0.51,
+          "thdn_db": -45.7,
+          "thd_db": -55.7
+        },
+        {
+          "out_dbfs": -48.0,
+          "in_dbfs": -48.51,
+          "gain_db": -0.51,
+          "thdn_db": -47.2,
+          "thd_db": -58.5
+        },
+        {
+          "out_dbfs": -45.0,
+          "in_dbfs": -45.51,
+          "gain_db": -0.51,
+          "thdn_db": -51.3,
+          "thd_db": -62.0
+        },
+        {
+          "out_dbfs": -42.0,
+          "in_dbfs": -42.51,
+          "gain_db": -0.51,
+          "thdn_db": -53.2,
+          "thd_db": -64.4
+        },
+        {
+          "out_dbfs": -39.0,
+          "in_dbfs": -39.51,
+          "gain_db": -0.51,
+          "thdn_db": -57.5,
+          "thd_db": -66.4
+        },
+        {
+          "out_dbfs": -36.0,
+          "in_dbfs": -36.51,
+          "gain_db": -0.51,
+          "thdn_db": -59.8,
+          "thd_db": -68.0
+        },
+        {
+          "out_dbfs": -33.0,
+          "in_dbfs": -33.51,
+          "gain_db": -0.51,
+          "thdn_db": -61.9,
+          "thd_db": -67.1
+        },
+        {
+          "out_dbfs": -30.0,
+          "in_dbfs": -30.51,
+          "gain_db": -0.51,
+          "thdn_db": -63.9,
+          "thd_db": -66.3
+        },
+        {
+          "out_dbfs": -27.0,
+          "in_dbfs": -27.51,
+          "gain_db": -0.51,
+          "thdn_db": -64.7,
+          "thd_db": -66.2
+        },
+        {
+          "out_dbfs": -24.0,
+          "in_dbfs": -24.52,
+          "gain_db": -0.52,
+          "thdn_db": -65.2,
+          "thd_db": -66.0
+        },
+        {
+          "out_dbfs": -21.0,
+          "in_dbfs": -21.52,
+          "gain_db": -0.52,
+          "thdn_db": -65.5,
+          "thd_db": -65.9
+        },
+        {
+          "out_dbfs": -18.0,
+          "in_dbfs": -18.52,
+          "gain_db": -0.52,
+          "thdn_db": -66.2,
+          "thd_db": -66.4
+        },
+        {
+          "out_dbfs": -15.0,
+          "in_dbfs": -15.52,
+          "gain_db": -0.52,
+          "thdn_db": -67.3,
+          "thd_db": -67.5
+        },
+        {
+          "out_dbfs": -12.0,
+          "in_dbfs": -12.53,
+          "gain_db": -0.53,
+          "thdn_db": -69.2,
+          "thd_db": -69.5
+        },
+        {
+          "out_dbfs": -9.0,
+          "in_dbfs": -9.52,
+          "gain_db": -0.52,
+          "thdn_db": -71.0,
+          "thd_db": -71.5
+        },
+        {
+          "out_dbfs": -6.0,
+          "in_dbfs": -6.52,
+          "gain_db": -0.52,
+          "thdn_db": -72.1,
+          "thd_db": -73.5
+        },
+        {
+          "out_dbfs": -3.0,
+          "in_dbfs": -3.52,
+          "gain_db": -0.52,
+          "thdn_db": -75.1,
+          "thd_db": -76.0
+        },
+        {
+          "out_dbfs": 0.0,
+          "in_dbfs": -1.09,
+          "gain_db": -1.09,
+          "thdn_db": -22.5,
+          "thd_db": -22.5
+        }
+      ],
+      "gain_spread_db": 0.58,
+      "compression_starts_dbfs": 0.0,
+      "clipping_starts_dbfs": 0.0
+    },
+    "sweep": {
+      "latency_samples": 113.35,
+      "latency_ms": 2.361,
+      "polarity": "inverted",
+      "low_corner_hz": 6.591796875,
+      "high_corner_hz": 22447.265625,
+      "dev_20_20k_db": [
+        -0.72,
+        0.01
+      ],
+      "dev_40_15k_db": [
+        -0.49,
+        0.01
+      ]
+    },
+    "continuity": {
+      "seconds": 12.0,
+      "load_percent": 80,
+      "glitches": 68,
+      "glitch_samples": [
+        452710,
+        452759,
+        452808,
+        452857,
+        452906,
+        452955,
+        453004,
+        453053,
+        453102,
+        453151,
+        453200,
+        453249,
+        453298,
+        453347,
+        453423,
+        453472,
+        453521,
+        453570,
+        453619,
+        453668
+      ],
+      "residual_dbfs": -63.0,
+      "threshold_dbfs": -48.0
+    },
+    "knobs": {
+      "volume": {
+        "mean_percent": 99.99,
+        "std_percent": 0.002,
+        "peak_to_peak_percent": 0.011,
+        "std_lsb": 1.1
+      },
+      "tone": {
+        "mean_percent": 99.99,
+        "std_percent": 0.002,
+        "peak_to_peak_percent": 0.014,
+        "std_lsb": 1.3
+      }
+    },
+    "timing": {
+      "max_us": 801,
+      "overruns": 0,
+      "callbacks": 40184
+    }
+  },
+  "checks": [
+    {
+      "name": "Loopback cable found",
+      "path": "tests.routing.loopback",
+      "value": true,
+      "limit": "= true",
+      "status": "PASS",
+      "why": "Most tests need an output jack cabled to the input jack"
+    },
+    {
+      "name": "SDRAM self-test",
+      "path": "device.sdram",
+      "value": "ok",
+      "limit": "= \"ok\"",
+      "status": "PASS",
+      "why": "Recordings are stored in SDRAM"
+    },
+    {
+      "name": "SNR, A-weighted",
+      "path": "tests.tones.snr_a_db",
+      "value": 99.4,
+      "limit": "\u2265 90 dB",
+      "status": "PASS",
+      "why": "Full-scale output over the idle noise floor"
+    },
+    {
+      "name": "SNR, unweighted 20 Hz-20 kHz",
+      "path": "tests.tones.snr_db",
+      "value": 96.1,
+      "limit": "\u2265 85 dB",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Dynamic range (AES17), A-weighted",
+      "path": "tests.tones.dynamic_range_a_db",
+      "value": 99.6,
+      "limit": "\u2265 90 dB",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "THD+N at -1 dBFS",
+      "path": "tests.tones.thdn_-1dBFS_db",
+      "value": -29.6,
+      "limit": "\u2264 -70 dB",
+      "status": "FAIL",
+      "why": "-70 dB is 0.03 %"
+    },
+    {
+      "name": "Idle noise, A-weighted",
+      "path": "tests.noise.noise_a_dbfs",
+      "value": -100.2,
+      "limit": "\u2264 -90 dBFS",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Mains hum",
+      "path": "tests.noise.hum.level_dbfs",
+      "value": -109.1,
+      "limit": "\u2264 -100 dBFS",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "DC offset at the input",
+      "path": "tests.noise.dc_offset_fs",
+      "value": -9e-06,
+      "limit": "|x| \u2264 0.01 FS",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Noise increase under CPU load",
+      "path": "tests.noise_load.increase_a_db",
+      "value": 0.1,
+      "limit": "\u2264 3 dB",
+      "status": "PASS",
+      "why": "Digital activity coupling into the analog rails"
+    },
+    {
+      "name": "Crosstalk between outputs",
+      "path": "tests.routing.crosstalk_db",
+      "value": -97.1,
+      "limit": "\u2264 -60 dB",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Gain linear from -60 to 0 dBFS",
+      "path": "tests.linearity.gain_spread_db",
+      "value": 0.58,
+      "limit": "\u2264 0.5 dB",
+      "status": "FAIL",
+      "why": ""
+    },
+    {
+      "name": "No clipping up to 0 dBFS out",
+      "path": "tests.linearity.clipping_starts_dbfs",
+      "value": 0.0,
+      "limit": "= null",
+      "status": "FAIL",
+      "why": ""
+    },
+    {
+      "name": "Response 40 Hz-15 kHz, low",
+      "path": "tests.sweep.dev_40_15k_db.0",
+      "value": -0.49,
+      "limit": "\u2265 -1 dB",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Response 40 Hz-15 kHz, high",
+      "path": "tests.sweep.dev_40_15k_db.1",
+      "value": 0.01,
+      "limit": "\u2264 1 dB",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Round-trip latency",
+      "path": "tests.sweep.latency_ms",
+      "value": 2.361,
+      "limit": "\u2264 5 ms",
+      "status": "PASS",
+      "why": "Two 1 ms blocks plus the codec's filters; players notice from about 10 ms"
+    },
+    {
+      "name": "No dropouts in 12 s under load",
+      "path": "tests.continuity.glitches",
+      "value": 68,
+      "limit": "\u2264 0",
+      "status": "FAIL",
+      "why": ""
+    },
+    {
+      "name": "No overruns in the test firmware",
+      "path": "tests.timing.overruns",
+      "value": 0,
+      "limit": "\u2264 0",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Volume knob noise",
+      "path": "tests.knobs.volume.peak_to_peak_percent",
+      "value": 0.011,
+      "limit": "\u2264 2 % travel",
+      "status": "PASS",
+      "why": "The main firmware reports knob moves of 2 % or more"
+    },
+    {
+      "name": "Tone knob noise",
+      "path": "tests.knobs.tone.peak_to_peak_percent",
+      "value": 0.014,
+      "limit": "\u2264 2 % travel",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Main firmware: every amp loads",
+      "path": "firmware.load_failures",
+      "value": 0,
+      "limit": "\u2264 0",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Main firmware: worst callback",
+      "path": "firmware.max_peak_us",
+      "value": 582,
+      "limit": "\u2264 950 us",
+      "status": "PASS",
+      "why": "The budget is 1000 us per 48-sample block"
+    },
+    {
+      "name": "Main firmware: overruns",
+      "path": "firmware.total_overruns",
+      "value": 0,
+      "limit": "\u2264 0",
+      "status": "PASS",
+      "why": ""
+    },
+    {
+      "name": "Main firmware: no allocations in the audio callback",
+      "path": "firmware.callback_allocations",
+      "value": 0,
+      "limit": "\u2264 0",
+      "status": "PASS",
+      "why": "Process must never allocate; the firmware counts any allocation made during the callback"
+    },
+    {
+      "name": "Main firmware: model switches",
+      "path": "firmware.switch_failures",
+      "value": 0,
+      "limit": "\u2264 0",
+      "status": "PASS",
+      "why": ""
+    }
+  ],
+  "firmware": {
+    "amps": [
+      {
+        "key": "0",
+        "name": "bypass",
+        "loaded": true,
+        "callback_allocations": 0,
+        "avg_us": 7,
+        "peak_us": 7,
+        "headroom_us": 993,
+        "overruns": 0,
+        "status_lines": 5
+      },
+      {
+        "key": "1",
+        "name": "Fender Twin65",
+        "loaded": true,
+        "callback_allocations": 0,
+        "avg_us": 569,
+        "peak_us": 581,
+        "headroom_us": 419,
+        "overruns": 0,
+        "status_lines": 4
+      },
+      {
+        "key": "2",
+        "name": "Vox AC30 Chimey",
+        "loaded": true,
+        "callback_allocations": 0,
+        "avg_us": 570,
+        "peak_us": 582,
+        "headroom_us": 418,
+        "overruns": 0,
+        "status_lines": 4
+      },
+      {
+        "key": "3",
+        "name": "Marshall JCM800 G5",
+        "loaded": true,
+        "callback_allocations": 0,
+        "avg_us": 570,
+        "peak_us": 579,
+        "headroom_us": 421,
+        "overruns": 0,
+        "status_lines": 4
+      },
+      {
+        "key": "4",
+        "name": "Fender Princeton65 EOB",
+        "loaded": true,
+        "callback_allocations": 0,
+        "avg_us": 557,
+        "peak_us": 566,
+        "headroom_us": 434,
+        "overruns": 0,
+        "status_lines": 4
+      },
+      {
+        "key": "5",
+        "name": "Randall Satan 50",
+        "loaded": true,
+        "callback_allocations": 0,
+        "avg_us": 556,
+        "peak_us": 566,
+        "headroom_us": 434,
+        "overruns": 0,
+        "status_lines": 4
+      }
+    ],
+    "switches": 30,
+    "switch_failures": 0,
+    "load_failures": 0,
+    "switch_seconds_max": 0.003,
+    "switch_seconds_mean": 0.002,
+    "max_peak_us": 582,
+    "total_overruns": 0,
+    "callback_allocations": 0
+  }
+}
