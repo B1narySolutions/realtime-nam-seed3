@@ -64,11 +64,11 @@ def run(port, log=print, seconds_per_amp=5, switches=30):
         for _ in console.lines(2.0):
             pass
 
-        # Bypass, then each amp: steady-state timing from the status lines.
+        # Each amp, then bypass: steady-state timing from the status lines.
         # The firmware ignores a key for what is already selected, and it
-        # boots into amp 1, so bypass goes first.
+        # boots into bypass, so bypass goes last.
         amps = []
-        for key in "012345":
+        for key in "123450":
             line, _ = console.select(key)
             if line is None:
                 amps.append({"key": key, "error": "no reply"})
@@ -95,9 +95,9 @@ def run(port, log=print, seconds_per_amp=5, switches=30):
                 times.append(seconds)
         log(f"  {switches} switches, {failures} failed")
 
-        # Leave it on the first amp, as it boots, and wait for a status report
-        # to cover the last switches.
-        console.select("1")
+        # Leave it in bypass, as it boots, and wait for a status report to
+        # cover the last switches.
+        console.select("0")
         for _ in console.lines(1.5):
             pass
         return {

@@ -43,13 +43,13 @@ serial and it reboots into DFU mode on its own. Otherwise (first flash, other
 firmware, or a hung board), hold **BOOT**, press and release **RESET**, then
 release **BOOT** to enter DFU mode before running `make upload`.
 
-The firmware starts with Fender selected. Press a key in the serial monitor
-to switch models or bypass; no Enter is needed:
+The firmware starts in bypass, with no model loaded. Press a key in the serial
+monitor to switch models or bypass; no Enter is needed:
 
 | Key | Selection |
 | --- | --- |
-| `0` | Clean bypass |
-| `1` | Fender '65 Twin Reverb (the amp it boots into) |
+| `0` | Clean bypass (what it boots into) |
+| `1` | Fender '65 Twin Reverb |
 | `2` | Vox AC30 Chimey |
 | `3` | Marshall JCM800 (gain 5) |
 | `4` | Fender '65 Princeton Reverb (edge of breakup) |

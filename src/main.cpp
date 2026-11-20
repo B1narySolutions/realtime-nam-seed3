@@ -12,12 +12,13 @@ static std::atomic<uint32_t> audio_callbacks{0};
 static std::atomic<uint32_t> max_callback_us{0};
 static std::atomic<uint32_t> total_callback_us{0};
 static std::atomic<uint32_t> overruns{0};
-static std::atomic<uint32_t> requested_amp{1};
+static std::atomic<uint32_t> requested_amp{0};
 static std::atomic<bool> cabinet_toggle_requested{false};
 static std::atomic<bool> bootloader_requested{false};
 static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio counters must be lock-free");
+// Starts in bypass, so the clean path can be measured right after boot.
 // Only changed while audio is stopped.
-static bool bypass = false;
+static bool bypass = true;
 
 // Process must never allocate (amp_model.h). The host tests check that; this
 // catches it on the board. The callback marks itself, operator new counts
@@ -108,7 +109,7 @@ static void EnterBootloaderIfRequested() {
 
 struct AppState {
     AmpId selected_amp = AmpId::Fender;
-    uint32_t current_command = 1;
+    uint32_t current_command = 0;
     bool model_ready = false;
     uint32_t last_report_ms = 0;
     bool led_on = false;
@@ -302,9 +303,9 @@ static void ReportStatus(AppState &state) {
 int main() {
     InitHardware();
 
-    // Load the default amp, start from where the knobs are, and start audio.
+    // Start in bypass with no model loaded; a key press loads one. Start from
+    // where the knobs are, and start audio.
     AppState state;
-    state.model_ready = audio.LoadAmpModel(state.selected_amp);
     audio.SetKnobs(seed.adc.GetFloat(kVolumeKnob), seed.adc.GetFloat(kToneKnob));
     audio.ResetKnobs();
     seed.StartAudio(AudioCallback);
